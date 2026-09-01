@@ -1,4 +1,8 @@
-"""Estilo visual + navegação inferior (mobile-first), aproximando o app do mockup."""
+"""Estilo visual + navegação inferior (mobile-first).
+
+A navegação usa st.page_link (nativa do Streamlit): troca de página SEM recarregar,
+o que mantém a sessão/login ativos. Links HTML puros recarregavam tudo e deslogavam.
+"""
 import streamlit as st
 
 _CSS = """
@@ -14,7 +18,7 @@ html, body, [class*="css"], .stApp{
   font-family:'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* esconde a lista de páginas padrão da sidebar (navegamos pela barra inferior) */
+/* esconde a lista de páginas padrão da sidebar (usamos a barra inferior) */
 [data-testid="stSidebarNav"]{ display:none; }
 
 /* respiro no topo e espaço para a barra inferior fixa */
@@ -32,25 +36,22 @@ html, body, [class*="css"], .stApp{
   border-radius:10px; font-weight:600;
 }
 
-/* barra de navegação inferior */
-.cofre-nav{
+/* ---- barra de navegação inferior (container com key="cofre_nav") ---- */
+.st-key-cofre_nav{
   position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:9990;
-  width:100%; max-width:760px; display:flex; justify-content:space-around; align-items:center;
-  background:#FFFFFF; border-top:1px solid var(--cofre-line);
-  padding:6px 8px 8px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
+  width:100%; max-width:760px; background:#FFFFFF; border-top:1px solid var(--cofre-line);
+  padding:4px 6px 6px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
 }
-.cofre-nav a{
-  text-decoration:none; color:var(--cofre-faint); font-size:.66rem; font-weight:600;
-  display:flex; flex-direction:column; align-items:center; gap:2px; flex:1; padding:3px 0;
+.st-key-cofre_nav [data-testid="stHorizontalBlock"]{ gap:2px; }
+.st-key-cofre_nav a{
+  display:flex !important; flex-direction:column; align-items:center; justify-content:center;
+  gap:1px; width:100%; padding:5px 0; text-align:center; border-radius:10px;
+  color:var(--cofre-faint) !important; text-decoration:none;
 }
-.cofre-nav a .ic{ font-size:1.18rem; line-height:1; }
-.cofre-nav a.on{ color:var(--cofre-brand-ink); }
-.cofre-nav a.add .plus{
-  width:46px; height:46px; margin-top:-24px; border-radius:50%;
-  background:var(--cofre-brand); color:#fff; display:flex; align-items:center; justify-content:center;
-  font-size:1.7rem; line-height:1; box-shadow:0 6px 16px -6px rgba(14,124,102,.75);
-}
-.cofre-nav a.add{ color:var(--cofre-brand-ink); }
+.st-key-cofre_nav a:hover{ background:var(--cofre-panel); color:var(--cofre-brand-ink) !important; }
+.st-key-cofre_nav a[aria-current="page"]{ color:var(--cofre-brand-ink) !important; }
+.st-key-cofre_nav a span:first-child{ font-size:1.15rem; line-height:1; }
+.st-key-cofre_nav a p{ margin:0; font-size:.64rem; font-weight:600; }
 </style>
 """
 
@@ -59,25 +60,20 @@ def inject_css():
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-# (chave, rótulo, url, ícone)
-_ITEMS = [
-    ("inicio", "Início", "/", "🏠"),
-    ("orcamento", "Orçam.", "/Orcamento", "📊"),
-    ("_add", "Lançar", "/Lancar", "＋"),
-    ("metas", "Metas", "/Metas", "🎯"),
-    ("mais", "Mais", "/Mais", "⚙️"),
+# (caminho do arquivo, rótulo, ícone)
+_PAGES = [
+    ("app.py", "Início", "🏠"),
+    ("pages/2_Orcamento.py", "Orçam.", "📊"),
+    ("pages/1_Lancar.py", "Lançar", "➕"),
+    ("pages/3_Metas.py", "Metas", "🎯"),
+    ("pages/4_Mais.py", "Mais", "⚙️"),
 ]
 
 
 def bottom_nav(active=""):
-    parts = ['<div class="cofre-nav">']
-    for key, label, href, icon in _ITEMS:
-        if key == "_add":
-            parts.append(f'<a class="add" href="{href}" target="_self">'
-                         f'<span class="plus">＋</span><span>{label}</span></a>')
-        else:
-            cls = "on" if key == active else ""
-            parts.append(f'<a class="{cls}" href="{href}" target="_self">'
-                         f'<span class="ic">{icon}</span>{label}</a>')
-    parts.append('</div>')
-    st.markdown("".join(parts), unsafe_allow_html=True)
+    """Barra inferior com navegação nativa (mantém a sessão ativa)."""
+    with st.container(key="cofre_nav"):
+        cols = st.columns(5)
+        for col, (path, label, icon) in zip(cols, _PAGES):
+            with col:
+                st.page_link(path, label=label, icon=icon)

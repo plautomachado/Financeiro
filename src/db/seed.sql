@@ -68,6 +68,6 @@ end $$;
 insert into profiles (id, household_id, display_name, role)
 select u.id, (select id from households order by created_at limit 1), 'Plauto', 'owner'
 from auth.users u
-where u.email = 'plautomachado@gmail.com'
+where u.email = 'SEU-EMAIL@exemplo.com'   -- troque pelo seu e-mail antes de rodar
 on conflict (id) do update
   set household_id = excluded.household_id, role = excluded.role;
