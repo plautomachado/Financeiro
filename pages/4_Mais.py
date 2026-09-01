@@ -10,6 +10,8 @@ from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context, refresh_context
 from src.services.transaction_service import list_transactions
+from src.services.currency_service import current_rates_to_brl, update_rates_to_brl
+from src.utils.formatting import format_money
 from src.db.client import get_client
 
 inject_css()
@@ -35,24 +37,39 @@ with tab2:
               for c in ctx["categories"]])
 
 with tab3:
-    st.caption("Taxa usada nas conversões: 1 unidade de *De* equivale a *Taxa* unidades de *Para*.")
-    d1, d2, d3 = st.columns(3)
-    frm = d1.selectbox("De", ["JPY", "BRL", "EUR", "USD"])
-    to = d2.selectbox("Para", ["BRL", "JPY", "EUR", "USD"])
-    rate = d3.number_input("Taxa", min_value=0.0, step=0.0001, format="%.4f")
-    if st.button("Salvar taxa", type="primary"):
-        if frm == to:
-            st.warning("Escolha moedas diferentes.")
-        elif rate <= 0:
-            st.warning("Informe uma taxa maior que zero.")
+    st.write("**Cotações automáticas → Real**")
+    r = current_rates_to_brl()
+    m1, m2, m3 = st.columns(3)
+    m1.metric("1 USD 💵", format_money(r.get("USD", 0), "BRL"))
+    m2.metric("1 EUR 💶", format_money(r.get("EUR", 0), "BRL"))
+    m3.metric("¥100 💴", format_money(r.get("JPY", 0) * 100, "BRL"))
+    if st.button("🔄 Atualizar cotação agora", type="primary", use_container_width=True):
+        if update_rates_to_brl():
+            st.success("Cotações atualizadas!")
+            st.rerun()
         else:
-            get_client().table("exchange_rates").upsert(
-                {"household_id": ctx["household_id"], "from_currency": frm, "to_currency": to,
-                 "rate": rate, "rate_date": date.today().isoformat()},
-                on_conflict="household_id,from_currency,to_currency,rate_date",
-            ).execute()
-            refresh_context()
-            st.success(f"Taxa salva: 1 {frm} = {rate} {to}")
+            st.error("Não consegui buscar a cotação agora. Tente mais tarde ou use a taxa manual abaixo.")
+    st.caption("Atualiza sozinho 1x por dia. Fontes: open.er-api.com / frankfurter.dev.")
+
+    st.divider()
+    with st.expander("✏️ Definir taxa manual (sobrescreve a do dia)"):
+        d1, d2, d3 = st.columns(3)
+        frm = d1.selectbox("De", ["JPY", "BRL", "EUR", "USD"])
+        to = d2.selectbox("Para", ["BRL", "JPY", "EUR", "USD"])
+        rate = d3.number_input("Taxa", min_value=0.0, step=0.0001, format="%.4f")
+        if st.button("Salvar taxa manual"):
+            if frm == to:
+                st.warning("Escolha moedas diferentes.")
+            elif rate <= 0:
+                st.warning("Informe uma taxa maior que zero.")
+            else:
+                get_client().table("exchange_rates").upsert(
+                    {"household_id": ctx["household_id"], "from_currency": frm, "to_currency": to,
+                     "rate": rate, "rate_date": date.today().isoformat(), "source": "manual"},
+                    on_conflict="household_id,from_currency,to_currency,rate_date",
+                ).execute()
+                refresh_context()
+                st.success(f"Taxa salva: 1 {frm} = {rate} {to}")
 
 with tab4:
     st.caption("Baixe todo o histórico de transações (você é o dono dos seus dados).")

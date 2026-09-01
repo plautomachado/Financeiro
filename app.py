@@ -11,6 +11,7 @@ from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
 from src.services import dashboard_service as dash
 from src.services.goal_service import list_goals, goal_progress
+from src.services.currency_service import ensure_daily_rates
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_name, prev_month
 
@@ -19,6 +20,7 @@ require_auth()
 sidebar_account()
 ctx = load_context()
 base = ctx["base_currency"]
+ensure_daily_rates()  # atualiza câmbio 1x/dia automaticamente
 
 st.title("Início")
 
