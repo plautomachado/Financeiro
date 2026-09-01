@@ -38,20 +38,28 @@ html, body, [class*="css"], .stApp{
 
 /* ---- barra de navegação inferior (container com key="cofre_nav") ---- */
 .st-key-cofre_nav{
-  position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:9990;
+  position:fixed !important; left:50%; transform:translateX(-50%); bottom:0; z-index:999999;
   width:100%; max-width:760px; background:#FFFFFF; border-top:1px solid var(--cofre-line);
-  padding:4px 6px 6px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
+  padding:4px 2px 6px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
 }
-.st-key-cofre_nav [data-testid="stHorizontalBlock"]{ gap:2px; }
+/* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
+.st-key-cofre_nav [data-testid="stHorizontalBlock"]{
+  flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important; align-items:center;
+}
+.st-key-cofre_nav [data-testid="stColumn"]{
+  flex:1 1 0 !important; width:auto !important; min-width:0 !important;
+}
 .st-key-cofre_nav a{
-  display:flex !important; flex-direction:column; align-items:center; justify-content:center;
+  display:flex !important; flex-direction:column !important; align-items:center; justify-content:center;
   gap:1px; width:100%; padding:5px 0; text-align:center; border-radius:10px;
-  color:var(--cofre-faint) !important; text-decoration:none;
+  font-size:.6rem !important; line-height:1.1;
+  color:var(--cofre-faint) !important; text-decoration:none !important;
 }
 .st-key-cofre_nav a:hover{ background:var(--cofre-panel); color:var(--cofre-brand-ink) !important; }
 .st-key-cofre_nav a[aria-current="page"]{ color:var(--cofre-brand-ink) !important; }
-.st-key-cofre_nav a span:first-child{ font-size:1.15rem; line-height:1; }
-.st-key-cofre_nav a p{ margin:0; font-size:.64rem; font-weight:600; }
+.st-key-cofre_nav a p{ margin:0 !important; font-size:.6rem !important; font-weight:600; }
+.st-key-cofre_nav a > span:first-child,
+.st-key-cofre_nav a [data-testid="stIconMaterial"]{ font-size:1.1rem !important; line-height:1; }
 </style>
 """
 
