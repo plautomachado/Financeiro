@@ -1,4 +1,4 @@
-# Cofre — App de finanças da família 💰
+# RM Money — App de finanças da família 💰
 
 App web (Streamlit + Supabase) para o controle financeiro da família entre **Brasil e Japão**, em **R$ e ¥**.
 Simples para lançar no dia a dia pelo celular, completo para analisar. Foco em duas metas: **reserva de emergência** e **entrada da casa**.
@@ -37,7 +37,7 @@ streamlit run app.py
 
 ## Estrutura
 ```
-cofre/
+rm_money/
 ├── app.py                # entrada · login · navegação
 ├── pages/                # Dashboard · Lançar · Orçamento · Metas · Mais
 ├── src/

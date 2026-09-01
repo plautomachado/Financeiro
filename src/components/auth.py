@@ -6,7 +6,7 @@ from src.services.reference_service import load_context
 
 
 def render_login():
-    st.markdown("## 💰 Cofre")
+    st.markdown("## 💰 RM Money")
     st.caption("Finanças da família — entre para continuar.")
     with st.form("login_form"):
         email = st.text_input("E-mail")

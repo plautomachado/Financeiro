@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="Cofre · Início", page_icon="💰",
+st.set_page_config(page_title="RM Money · Início", page_icon="💰",
                    layout="centered", initial_sidebar_state="collapsed")
 
 from datetime import date

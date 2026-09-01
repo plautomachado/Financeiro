@@ -1,1 +1,1 @@
-"""Cofre — pacote da aplicação."""
+"""RM Money — pacote da aplicação."""
