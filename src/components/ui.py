@@ -21,14 +21,22 @@ html, body, [class*="css"], .stApp{
 /* esconde a lista de páginas padrão da sidebar (usamos a barra inferior) */
 [data-testid="stSidebarNav"]{ display:none; }
 
-/* remove a moldura do Streamlit Cloud: toolbar/Fork/GitHub (topo) e badge (rodapé) */
-[data-testid="stToolbar"]{ display:none !important; }
-[data-testid="stDecoration"]{ display:none !important; }
-[data-testid="stStatusWidget"]{ display:none !important; }
-[data-testid="manage-app-button"]{ display:none !important; }
-#MainMenu{ display:none !important; }
-[class*="viewerBadge"]{ display:none !important; }
-[data-testid="stAppViewBadge"]{ display:none !important; }
+/* remove a moldura do Streamlit Cloud: toolbar/Fork/GitHub (topo) e badge/manage (rodapé) */
+[data-testid="stToolbar"],
+[data-testid="stToolbarActions"],
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"],
+[data-testid="stMainMenu"],
+#MainMenu,
+.stAppDeployButton,
+[data-testid="stAppDeployButton"],
+[data-testid="manage-app-button"],
+[data-testid="stAppViewBadge"],
+[class*="viewerBadge"],
+[class*="_profileContainer"],
+[class*="_terminalButton"],
+a[href*="streamlit.io"],
+a[href*="share.streamlit.io"]{ display:none !important; }
 
 /* respiro no topo e espaço para a barra inferior fixa */
 .block-container{ padding-top:2.4rem; padding-bottom:6.5rem; max-width:760px; }
