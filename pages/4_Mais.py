@@ -21,6 +21,8 @@ ctx = load_context()
 
 st.title("⚙️ Mais")
 
+st.page_link("pages/5_Recorrencias.py", label="🔁 Recorrências", use_container_width=True)
+
 tab1, tab2, tab3, tab4 = st.tabs(["Membros & contas", "Categorias", "Câmbio", "Exportar"])
 
 with tab1:
