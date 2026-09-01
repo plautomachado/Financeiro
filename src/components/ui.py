@@ -57,7 +57,8 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 .st-key-cofre_nav{
   position:fixed !important; left:50%; transform:translateX(-50%); bottom:0; z-index:999999;
   width:100%; max-width:760px; background:#FFFFFF; border-top:1px solid var(--cofre-line);
-  padding:4px 2px 6px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
+  /* padding-right maior reserva o canto pro badge do Streamlit não cobrir o "Mais" */
+  padding:4px 60px 6px 4px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
