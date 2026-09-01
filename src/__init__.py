@@ -1,0 +1,1 @@
+"""Cofre — pacote da aplicação."""
