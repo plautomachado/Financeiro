@@ -6,7 +6,7 @@ st.set_page_config(page_title="Metas", page_icon="🎯",
 from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
-from src.services.goal_service import list_goals, goal_progress, add_contribution, simulate
+from src.services.goal_service import list_goals, goal_progress, add_contribution, simulate, update_goal
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_label
 
@@ -48,6 +48,34 @@ for g in goals:
         for s in simulate(g, sim_values):
             when = month_label(s["date"].year, s["date"].month) if s["date"] else "—"
             st.write(f"{format_money(s['monthly'], cur)}/mês → **{when}**")
+
+    with st.expander("⚙️ Editar meta"):
+        upd = {"name": st.text_input("Nome", value=g["name"], key=f"gn_{g['id']}")}
+        config = g.get("config") or {}
+        if g["type"] == "house":
+            pv = st.number_input("Valor do imóvel", value=float(config.get("property_value") or 0), step=1000.0, key=f"gpv_{g['id']}")
+            pctv = st.number_input("% de entrada", value=float(config.get("down_payment_pct") or 25), min_value=0.0, max_value=100.0, step=1.0, key=f"gpct_{g['id']}")
+            upd["config"] = {"property_value": pv, "down_payment_pct": pctv}
+            upd["target_amount"] = round(pv * pctv / 100, 2)
+            st.caption(f"Meta de entrada: {format_money(pv * pctv / 100, cur)}")
+        elif g["type"] == "emergency":
+            mode = st.radio("Definir por", ["Valor fixo", "Meses de despesa"], horizontal=True, key=f"gmode_{g['id']}")
+            if mode == "Meses de despesa":
+                months = st.number_input("Nº de meses", value=int(config.get("months") or 6), min_value=1, max_value=36, step=1, key=f"gmo_{g['id']}")
+                avg = st.number_input("Despesa média mensal", value=float(config.get("avg_monthly_expense") or 0), step=100.0, key=f"gae_{g['id']}")
+                upd["config"] = {"months": months, "avg_monthly_expense": avg}
+                upd["target_amount"] = round(months * avg, 2)
+                st.caption(f"Meta: {format_money(months * avg, cur)}")
+            else:
+                upd["target_amount"] = st.number_input("Valor alvo", value=float(g.get("target_amount") or 0), step=100.0, key=f"gtf_{g['id']}")
+                upd["config"] = {}
+        else:
+            upd["target_amount"] = st.number_input("Valor alvo", value=float(g.get("target_amount") or 0), step=100.0, key=f"gt2_{g['id']}")
+        upd["monthly_plan"] = st.number_input("Aporte mensal planejado", value=float(g.get("monthly_plan") or 0), step=100.0, key=f"gpl_{g['id']}")
+        if st.button("Salvar meta", type="primary", key=f"gsv_{g['id']}"):
+            update_goal(g["id"], upd)
+            st.success("Meta atualizada!")
+            st.rerun()
 
     with st.expander("➕ Registrar aporte"):
         amt = st.number_input("Valor do aporte", min_value=0.0, step=100.0, key=f"apt_{g['id']}")

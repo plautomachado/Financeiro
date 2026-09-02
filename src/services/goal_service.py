@@ -25,6 +25,10 @@ def list_goals(active_only=True):
     return q.execute().data
 
 
+def update_goal(goal_id, updates):
+    return _client().table("financial_goals").update(updates).eq("id", goal_id).execute()
+
+
 def contributions_total(goal_id):
     res = (_client().table("transactions").select("amount_base")
            .eq("type", "contribution").eq("goal_id", goal_id).execute().data)

@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.components.auth import require_auth, sidebar_account, account_section
 from src.components.ui import inject_css, bottom_nav
-from src.services.reference_service import load_context, refresh_context
+from src.services.reference_service import load_context, refresh_context, create_category, deactivate_category
 from src.services.transaction_service import list_transactions
 from src.services.currency_service import current_rates_to_brl, update_rates_to_brl
 from src.utils.formatting import format_money
@@ -40,9 +40,28 @@ with tab1:
               for a in ctx["accounts"]])
 
 with tab2:
-    st.table([{"Categoria": f"{c.get('icon', '')} {c['name']}".strip(),
-               "Tipo": {"expense": "Despesa", "income": "Receita", "both": "Ambos"}.get(c["kind"], c["kind"])}
-              for c in ctx["categories"]])
+    with st.expander("➕ Nova categoria"):
+        ncn = st.text_input("Nome", key="newcat", placeholder="Ex.: Bônus, Freela Arq")
+        nck = st.selectbox("Tipo", ["expense", "income"],
+                           format_func=lambda k: "Despesa" if k == "expense" else "Receita", key="newcatk")
+        nci = st.text_input("Ícone (emoji, opcional)", key="newcati")
+        if st.button("Adicionar categoria", type="primary", key="addcat"):
+            if ncn.strip():
+                create_category(ncn.strip(), nck, nci.strip() or None)
+                refresh_context()
+                st.success("Categoria adicionada!")
+                st.rerun()
+            else:
+                st.warning("Informe o nome.")
+    st.caption("Toque em ✖ para desativar uma categoria.")
+    for c in ctx["categories"]:
+        tag = {"expense": "Despesa", "income": "Receita", "both": "Ambos"}.get(c["kind"], c["kind"])
+        row = st.columns([6, 1])
+        row[0].markdown(f"{c.get('icon', '')} **{c['name']}** — {tag}")
+        if row[1].button("✖", key=f"delcat_{c['id']}"):
+            deactivate_category(c["id"])
+            refresh_context()
+            st.rerun()
 
 with tab3:
     st.write("**Cotações automáticas → Real**")

@@ -34,6 +34,20 @@ def list_categories(kind=None, active_only=True):
     return q.execute().data
 
 
+def create_category(name, kind="expense", icon=None):
+    ctx = load_context()
+    allcats = list_categories(active_only=False)
+    order = max([c.get("sort_order", 0) for c in allcats], default=0) + 1
+    return _client().table("categories").insert({
+        "household_id": ctx["household_id"], "name": name, "kind": kind,
+        "icon": icon, "sort_order": order, "is_active": True,
+    }).execute()
+
+
+def deactivate_category(category_id):
+    return _client().table("categories").update({"is_active": False}).eq("id", category_id).execute()
+
+
 def list_accounts(active_only=True):
     q = _client().table("accounts").select("*").order("name")
     if active_only:
