@@ -6,7 +6,7 @@ st.set_page_config(page_title="Mais", page_icon="⚙️",
 from datetime import date
 import pandas as pd
 
-from src.components.auth import require_auth, sidebar_account
+from src.components.auth import require_auth, sidebar_account, account_section
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context, refresh_context
 from src.services.transaction_service import list_transactions
@@ -20,6 +20,9 @@ sidebar_account()
 ctx = load_context()
 
 st.title("⚙️ Mais")
+
+account_section()
+st.divider()
 
 st.page_link("pages/5_Recorrencias.py", label="🔁 Recorrências", use_container_width=True)
 st.page_link("pages/6_Cartoes.py", label="💳 Cartões & parcelas", use_container_width=True)

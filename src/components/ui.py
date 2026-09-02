@@ -22,7 +22,8 @@ html, body, [class*="css"], .stApp{
 /* esconde a lista de páginas padrão da sidebar (usamos a barra inferior) */
 [data-testid="stSidebarNav"]{ display:none; }
 
-/* remove a moldura do Streamlit Cloud: toolbar/Fork/GitHub (topo) e badge/manage (rodapé) */
+/* remove a moldura do Streamlit Cloud: header/toolbar/Fork/GitHub (topo) e badge/manage (rodapé) */
+[data-testid="stHeader"],
 [data-testid="stToolbar"],
 [data-testid="stToolbarActions"],
 [data-testid="stStatusWidget"],
@@ -40,7 +41,7 @@ a[href*="streamlit.io"],
 a[href*="share.streamlit.io"]{ display:none !important; }
 
 /* respiro no topo e espaço para a barra inferior fixa */
-.block-container{ padding-top:2.4rem; padding-bottom:8.5rem; max-width:760px; }
+.block-container{ padding-top:5rem; padding-bottom:3rem; max-width:760px; }
 
 /* KPIs em grade 2 colunas (estilo mockup) */
 .kpi-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:4px 0 2px; }
@@ -70,11 +71,11 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 
 /* ---- barra de navegação inferior (container com key="cofre_nav") ---- */
 .st-key-cofre_nav{
-  /* levantada ~52px para o badge do Streamlit (canto inferior) não cobrir os itens */
-  position:fixed !important; left:50%; transform:translateX(-50%); bottom:52px; z-index:999999;
-  width:calc(100% - 18px); max-width:740px; background:#FFFFFF;
-  border:1px solid var(--cofre-line); border-radius:16px;
-  padding:6px 4px 8px; box-shadow:0 10px 30px -12px rgba(20,33,28,.45);
+  /* menu no TOPO (evita o badge do Streamlit, que fica no rodapé) */
+  position:fixed !important; left:50%; transform:translateX(-50%); top:0; z-index:999999;
+  width:100%; max-width:760px; background:#FFFFFF;
+  border-bottom:1px solid var(--cofre-line); border-radius:0 0 16px 16px;
+  padding:8px 4px 6px; box-shadow:0 8px 24px -14px rgba(20,33,28,.4);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
