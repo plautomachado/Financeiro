@@ -51,6 +51,11 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 .kpi-hero{ grid-column:1 / -1; background:var(--cofre-brand-soft); border-color:var(--cofre-brand); }
 .kpi-hero .kpi-v{ color:var(--cofre-brand-ink); font-size:1.7rem; }
 
+/* cartões de insight (relatório) */
+.insight{ display:flex; gap:10px; align-items:flex-start; background:var(--cofre-panel);
+  border:1px solid var(--cofre-line); border-radius:12px; padding:10px 13px; margin-bottom:8px; font-size:.93rem; }
+.insight .ie{ font-size:1.15rem; line-height:1.3; flex:none; }
+
 /* KPIs como cartões */
 [data-testid="stMetric"]{
   background:var(--cofre-panel); border:1px solid var(--cofre-line);
