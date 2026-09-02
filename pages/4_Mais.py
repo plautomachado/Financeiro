@@ -28,6 +28,7 @@ st.page_link("pages/5_Recorrencias.py", label="🔁 Recorrências", use_containe
 st.page_link("pages/6_Cartoes.py", label="💳 Cartões & parcelas", use_container_width=True)
 st.page_link("pages/7_Relatorio.py", label="📄 Relatório mensal", use_container_width=True)
 st.page_link("pages/8_Patrimonio.py", label="🏦 Patrimônio", use_container_width=True)
+st.page_link("pages/9_Importar.py", label="📥 Importar extrato + regras", use_container_width=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["Membros & contas", "Categorias", "Câmbio", "Exportar"])
 

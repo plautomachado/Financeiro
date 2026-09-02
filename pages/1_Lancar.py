@@ -35,7 +35,14 @@ with st.form("nl_form"):
     )
     interpretar = st.form_submit_button("Interpretar", use_container_width=True)
 if interpretar and nl_text.strip():
-    st.session_state.nl_result = parse_entry(nl_text, ctx["members"], ctx["categories"], base)
+    res = parse_entry(nl_text, ctx["members"], ctx["categories"], base)
+    from src.services.rules_service import categorize
+    _cid, _ = categorize(nl_text)
+    if _cid:
+        _c = next((c for c in ctx["categories"] if c["id"] == _cid), None)
+        if _c:
+            res["category"] = _c
+    st.session_state.nl_result = res
 
 res = st.session_state.get("nl_result")
 if res:
