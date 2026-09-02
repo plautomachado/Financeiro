@@ -11,6 +11,7 @@ _CSS = """
 
 :root{
   --cofre-brand:#0E7C66; --cofre-brand-ink:#0A5A4A; --cofre-japan:#C2442E;
+  --cofre-brand-soft:#DDEFE8;
   --cofre-panel:#EFF3EC; --cofre-line:#DBE2D5; --cofre-faint:#8A968C;
 }
 
@@ -39,7 +40,15 @@ a[href*="streamlit.io"],
 a[href*="share.streamlit.io"]{ display:none !important; }
 
 /* respiro no topo e espaço para a barra inferior fixa */
-.block-container{ padding-top:2.4rem; padding-bottom:6.5rem; max-width:760px; }
+.block-container{ padding-top:2.4rem; padding-bottom:8.5rem; max-width:760px; }
+
+/* KPIs em grade 2 colunas (estilo mockup) */
+.kpi-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:4px 0 2px; }
+.kpi{ background:var(--cofre-panel); border:1px solid var(--cofre-line); border-radius:14px; padding:11px 13px; }
+.kpi-l{ font-size:.62rem; text-transform:uppercase; letter-spacing:.05em; color:var(--cofre-faint); font-weight:600; }
+.kpi-v{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:600; font-size:1.3rem; margin-top:3px; letter-spacing:-.02em; }
+.kpi-hero{ grid-column:1 / -1; background:var(--cofre-brand-soft); border-color:var(--cofre-brand); }
+.kpi-hero .kpi-v{ color:var(--cofre-brand-ink); font-size:1.7rem; }
 
 /* KPIs como cartões */
 [data-testid="stMetric"]{
@@ -61,10 +70,11 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 
 /* ---- barra de navegação inferior (container com key="cofre_nav") ---- */
 .st-key-cofre_nav{
-  position:fixed !important; left:50%; transform:translateX(-50%); bottom:0; z-index:999999;
-  width:100%; max-width:760px; background:#FFFFFF; border-top:1px solid var(--cofre-line);
-  /* padding-right maior reserva o canto pro badge do Streamlit não cobrir o "Mais" */
-  padding:4px 60px 6px 4px; box-shadow:0 -4px 22px -14px rgba(20,33,28,.35);
+  /* levantada ~52px para o badge do Streamlit (canto inferior) não cobrir os itens */
+  position:fixed !important; left:50%; transform:translateX(-50%); bottom:52px; z-index:999999;
+  width:calc(100% - 18px); max-width:740px; background:#FFFFFF;
+  border:1px solid var(--cofre-line); border-radius:16px;
+  padding:6px 4px 8px; box-shadow:0 10px 30px -12px rgba(20,33,28,.45);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{

@@ -36,30 +36,24 @@ member_name = c3.selectbox("Pessoa", list(member_opts.keys()))
 member_id = member_opts[member_name]
 
 s = dash.summary(year, month, member_id=member_id)
-prev = s["prev"]
 
 
-def _delta(cur, old):
-    diff = cur - old
-    if abs(diff) < 0.005:
-        return None
-    return format_money(diff, base)
+# ---------- KPIs (grade 2 colunas, estilo mockup) ----------
+def _kpi(label, value, hero=False):
+    cls = "kpi kpi-hero" if hero else "kpi"
+    return f'<div class="{cls}"><div class="kpi-l">{label}</div><div class="kpi-v">{value}</div></div>'
 
 
-# ---------- KPIs ----------
-k1, k2, k3 = st.columns(3)
-k1.metric("Receitas", format_money(s["receitas"], base), delta=_delta(s["receitas"], prev["receitas"]))
-k2.metric("Despesas", format_money(s["despesas"], base),
-          delta=_delta(s["despesas"], prev["despesas"]), delta_color="inverse")
-k3.metric("Aportes", format_money(s["aportes"], base), delta=_delta(s["aportes"], prev["aportes"]))
-
-k4, k5 = st.columns(2)
-k4.metric("Saldo livre", format_money(s["saldo_livre"], base))
-k5.metric("Taxa de economia", format_pct(s["taxa_economia"]),
-          delta=_delta(s["taxa_economia"], prev["taxa_economia"]))
-
-pm_y, pm_m = prev_month(year, month)
-st.caption(f"Variação (setas) comparada a {month_name(pm_m, short=True)}/{pm_y}.")
+st.markdown(
+    '<div class="kpi-grid">'
+    + _kpi("Receitas", format_money(s["receitas"], base))
+    + _kpi("Despesas", format_money(s["despesas"], base))
+    + _kpi("Aportes", format_money(s["aportes"], base))
+    + _kpi("Saldo livre", format_money(s["saldo_livre"], base))
+    + _kpi("Taxa de economia", format_pct(s["taxa_economia"]), hero=True)
+    + '</div>',
+    unsafe_allow_html=True,
+)
 st.divider()
 
 txs = s["_txs"]
