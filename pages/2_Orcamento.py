@@ -8,7 +8,7 @@ from datetime import date
 from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
-from src.services.budget_service import budget_status, upsert_budget
+from src.services.budget_service import budget_status, upsert_budget, delete_budget
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_name
 
@@ -33,8 +33,14 @@ if not rows:
 
 for r in rows:
     emoji, label = STATUS[r["status"]]
-    st.markdown(f"**{r['icon']} {r['category']}** — "
-                f"{format_money(r['spent'], base)} / {format_money(r['planned'], base)} &nbsp; {emoji} {label}")
+    head = st.columns([6, 1])
+    head[0].markdown(f"**{r['icon']} {r['category']}** — "
+                     f"{format_money(r['spent'], base)} / {format_money(r['planned'], base)} &nbsp; {emoji} {label}")
+    with head[1].popover("🗑"):
+        st.caption("Excluir este orçamento?")
+        if st.button("Confirmar", key=f"delb_{r['id']}", type="primary"):
+            delete_budget(r["id"])
+            st.rerun()
     st.progress(
         min(r["usage"] / 100, 1.0),
         text=(f"{format_pct(r['usage'])} usado · disponível {format_money(r['available'], base)} · "

@@ -41,6 +41,10 @@ def upsert_budget(year, month, category_id, planned_amount, currency=None):
     return _client().table("monthly_budgets").insert(payload).execute()
 
 
+def delete_budget(budget_id):
+    return _client().table("monthly_budgets").delete().eq("id", budget_id).execute()
+
+
 def budget_status(year, month):
     """Retorna, por categoria orçada: planejado, gasto, disponível, uso%, projeção, status."""
     ctx = load_context()
@@ -64,6 +68,7 @@ def budget_status(year, month):
         usage = budget_usage(gasto, planned)
         cat = cats.get(cid, {})
         rows.append({
+            "id": b["id"],
             "category_id": cid,
             "category": cat.get("name", "—"),
             "icon": cat.get("icon", ""),
