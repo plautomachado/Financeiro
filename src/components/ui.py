@@ -7,7 +7,7 @@ import streamlit as st
 
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 :root{
   --cofre-brand:#0E7C66; --cofre-brand-ink:#0A5A4A; --cofre-japan:#C2442E;
@@ -46,12 +46,18 @@ a[href*="share.streamlit.io"]{ display:none !important; }
   background:var(--cofre-panel); border:1px solid var(--cofre-line);
   border-radius:14px; padding:12px 14px;
 }
-[data-testid="stMetricValue"]{ font-weight:600; }
+[data-testid="stMetricValue"]{ font-weight:600; font-family:'IBM Plex Mono', ui-monospace, monospace; letter-spacing:-.02em; }
+[data-testid="stMetricLabel"] p{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--cofre-faint); }
 
 /* botões arredondados */
 .stButton>button, .stFormSubmitButton>button, .stDownloadButton>button{
   border-radius:10px; font-weight:600;
 }
+
+/* campos arredondados + controles em pílula (mais perto do mockup) */
+.stTextInput input, .stNumberInput input, .stDateInput input,
+[data-baseweb="select"] > div, [data-baseweb="input"]{ border-radius:10px !important; }
+[data-testid="stSegmentedControl"] button{ border-radius:9px !important; }
 
 /* ---- barra de navegação inferior (container com key="cofre_nav") ---- */
 .st-key-cofre_nav{

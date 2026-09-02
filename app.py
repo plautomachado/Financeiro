@@ -12,6 +12,7 @@ from src.services.reference_service import load_context
 from src.services import dashboard_service as dash
 from src.services.goal_service import list_goals, goal_progress
 from src.services.currency_service import ensure_daily_rates
+from src.services.transaction_service import delete_transaction
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_name, prev_month
 
@@ -91,6 +92,29 @@ for g in goals:
     st.write(f"{icon} **{g['name']}** — {format_money(p['current'], p['currency'])} "
              f"/ {format_money(p['target'], p['currency'])}")
     st.progress(min(p["pct"] / 100, 1.0), text=format_pct(p["pct"]))
+
+# ---------- Últimos lançamentos (com excluir) ----------
+st.divider()
+st.subheader("Últimos lançamentos")
+_mem = {m["id"]: m["name"] for m in ctx["members"]}
+_cat = {c["id"]: f"{c.get('icon', '')} {c['name']}".strip() for c in ctx["categories"]}
+_sign = {"expense": "−", "income": "+", "contribution": "→", "transfer": "↔"}
+recent = txs[:15]
+if not recent:
+    st.caption("Nenhum lançamento neste período.")
+for t in recent:
+    desc = t.get("description") or _cat.get(t.get("category_id"), "—")
+    dd = t["occurred_on"][8:10] + "/" + t["occurred_on"][5:7]
+    row = st.columns([5, 1])
+    row[0].markdown(
+        f"{_sign.get(t['type'], '')}{format_money(t['amount_original'], t['currency_original'])} "
+        f"· {desc} · {_mem.get(t['member_id'], '—')} · {dd}"
+    )
+    with row[1].popover("🗑"):
+        st.caption("Excluir este lançamento?")
+        if st.button("Confirmar exclusão", key=f"del_{t['id']}", type="primary"):
+            delete_transaction(t["id"])
+            st.rerun()
 
 st.page_link("pages/1_Lancar.py", label="➕ Novo lançamento", use_container_width=True)
 

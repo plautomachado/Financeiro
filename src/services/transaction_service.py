@@ -13,7 +13,9 @@ def _client():
 def create_transaction(*, type, amount_original, currency_original, country,
                        member_id, base_currency=None, exchange_rate=None,
                        category_id=None, subcategory_id=None, account_id=None,
-                       goal_id=None, recurring_id=None, description=None, note=None, occurred_on=None):
+                       goal_id=None, recurring_id=None, credit_card_id=None,
+                       installment_id=None, installment_no=None,
+                       description=None, note=None, occurred_on=None):
     ctx = load_context()
     base_currency = base_currency or ctx["base_currency"]
     if exchange_rate is None:
@@ -34,11 +36,15 @@ def create_transaction(*, type, amount_original, currency_original, country,
         "subcategory_id": subcategory_id,
         "account_id": account_id,
         "goal_id": goal_id,
-        "recurring_id": recurring_id,
         "description": description,
         "note": note,
         "occurred_on": (occurred_on or date.today()).isoformat(),
     }
+    # colunas opcionais: só enviadas se preenchidas (resiliente a migrações do banco)
+    for _k, _v in (("recurring_id", recurring_id), ("credit_card_id", credit_card_id),
+                   ("installment_id", installment_id), ("installment_no", installment_no)):
+        if _v is not None:
+            payload[_k] = _v
     res = _client().table("transactions").insert(payload).execute()
     return res.data[0] if res.data else None
 

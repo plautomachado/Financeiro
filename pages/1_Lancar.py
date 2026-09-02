@@ -67,12 +67,13 @@ if res:
 st.divider()
 st.caption("ou preencha manualmente")
 
-type_label = st.radio("Tipo", list(TYPES.keys()), horizontal=True)
+type_label = st.segmented_control("Tipo", list(TYPES.keys()), default="Despesa") or "Despesa"
 ttype = TYPES[type_label]
 
 # Pessoa define os padrões inteligentes
 members = ctx["members"]
-msel = st.radio("Pessoa", [m["name"] for m in members], horizontal=True)
+member_names = [m["name"] for m in members]
+msel = st.segmented_control("Pessoa", member_names, default=member_names[0]) or member_names[0]
 member = next(m for m in members if m["name"] == msel)
 def_cur = member["default_currency"]
 def_country = member["default_country"]
