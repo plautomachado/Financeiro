@@ -84,14 +84,13 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
 /* especificidade dobrada: vence a classe do Streamlit e força a largura total */
-.st-key-cofre_nav.st-key-cofre_nav{ width:100% !important; max-width:760px !important; }
-.st-key-cofre_nav [data-testid="stLayoutWrapper"]{ width:100% !important; }
-/* o bloco interno vira uma LINHA com 5 itens iguais (sem depender de st.columns) */
-.st-key-cofre_nav [data-testid="stVerticalBlock"]{
+/* o PRÓPRIO container vira uma LINHA com 5 itens iguais (filhos diretos) */
+.st-key-cofre_nav.st-key-cofre_nav{
+  width:100% !important; max-width:760px !important;
   display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-  justify-content:space-around !important; align-items:center; gap:0 !important; width:100% !important;
+  justify-content:space-around !important; align-items:center; gap:0 !important;
 }
-.st-key-cofre_nav [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]{
+.st-key-cofre_nav > [data-testid="stElementContainer"]{
   flex:1 1 0 !important; width:20% !important; min-width:0 !important; max-width:20% !important;
 }
 .st-key-cofre_nav a{
