@@ -83,6 +83,8 @@ a[href*="share.streamlit.io"]{ display:none !important; }
   padding:8px 4px 6px; box-shadow:0 8px 24px -14px rgba(20,33,28,.4);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
+/* especificidade dobrada: vence a classe do Streamlit e força a largura total */
+.st-key-cofre_nav.st-key-cofre_nav{ width:100% !important; max-width:760px !important; }
 .st-key-cofre_nav [data-testid="stLayoutWrapper"]{ width:100% !important; }
 .st-key-cofre_nav [data-testid="stVerticalBlock"]{ width:100% !important; gap:0 !important; }
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
