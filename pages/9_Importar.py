@@ -27,7 +27,7 @@ members = ctx["members"]
 COUNTRY = {"JP": "Japão", "BR": "Brasil", "EU": "Europa", "US": "EUA"}
 
 st.title("📥 Importar extrato")
-st.caption("Suba um CSV do banco/cartão. O app tenta categorizar sozinho pelas suas regras, e você revisa antes de gravar.")
+st.caption("Suba um **CSV** ou **PDF** do banco/cartão. O app tenta ler e categorizar sozinho pelas suas regras, e você revisa antes de gravar.")
 
 
 def _parse_amt(x):
@@ -49,6 +49,26 @@ def _parse_amt(x):
     return -v if neg else v
 
 
+def _prepare_rows(triples, neg_is_expense):
+    """triples: lista de (date, desc, amount_com_sinal) -> linhas da prévia editável."""
+    rules = list_rules()
+    rows = []
+    for dt, desc, amt in triples:
+        if dt is None or (isinstance(dt, float) and pd.isna(dt)) or amt is None:
+            continue
+        if neg_is_expense:
+            tipo = "Despesa" if amt < 0 else "Receita"
+        else:
+            tipo = "Receita" if amt < 0 else "Despesa"
+        cid, _ = categorize(desc, rules)
+        rows.append({
+            "Importar": True, "Data": dt, "Descrição": desc or "(sem descrição)",
+            "Valor": round(abs(amt), 2), "Tipo": tipo,
+            "Categoria": cat_by_id.get(cid, {}).get("name", ""),
+        })
+    return rows
+
+
 # ---------- padrões dos lançamentos importados ----------
 st.subheader("1. Padrões")
 d1, d2, d3 = st.columns(3)
@@ -60,10 +80,45 @@ country = d3.selectbox("País", ["BR", "JP", "EU", "US"],
                        format_func=lambda c: COUNTRY[c])
 
 # ---------- upload ----------
-st.subheader("2. Arquivo CSV")
-up = st.file_uploader("Selecione o CSV do extrato", type=["csv"])
+st.subheader("2. Arquivo (CSV ou PDF)")
+up = st.file_uploader("Selecione o extrato", type=["csv", "pdf"])
+is_pdf = up is not None and up.name.lower().endswith(".pdf")
 
-if up is not None:
+# ===================== PDF =====================
+if up is not None and is_pdf:
+    raw = up.getvalue()
+    try:
+        from src.services.pdf_import import extract_transactions
+        pdf_rows = extract_transactions(raw)
+    except Exception as e:
+        pdf_rows = []
+        st.error(f"Não consegui abrir o PDF: {e}")
+
+    if pdf_rows == []:
+        st.warning(
+            "Não encontrei lançamentos neste PDF. Pode ser um layout diferente "
+            "(ou um PDF escaneado/imagem). Me manda um exemplo que eu calibro o leitor pro seu banco."
+        )
+    elif pdf_rows:
+        st.success(f"Li **{len(pdf_rows)}** possível(is) lançamento(s). Ajuste o tipo de extrato e prepare:")
+        origem = st.radio(
+            "Que extrato é esse?", ["Conta corrente", "Fatura de cartão"], horizontal=True,
+            help="Define o sinal: em conta, valor negativo = despesa; em fatura, valor positivo = compra.",
+        )
+        with st.expander("👀 Ver texto lido do PDF (se algo veio errado)"):
+            st.dataframe(
+                pd.DataFrame([{"Data": r["date"], "Descrição": r["desc"], "Valor": r["amount"]} for r in pdf_rows]),
+                use_container_width=True,
+            )
+        if st.button("Preparar lançamentos", type="primary", use_container_width=True, key="prep_pdf"):
+            # Conta corrente: negativo=despesa. Fatura: positivo=compra(despesa) -> invertido.
+            neg_is_expense = (origem == "Conta corrente")
+            triples = [(r["date"], r["desc"], r["amount"]) for r in pdf_rows]
+            st.session_state["import_df"] = pd.DataFrame(_prepare_rows(triples, neg_is_expense))
+            st.session_state["import_ignored"] = 0
+
+# ===================== CSV =====================
+elif up is not None:
     raw = up.getvalue()
     text = None
     for enc in ("utf-8-sig", "utf-8", "latin-1"):
@@ -96,67 +151,54 @@ if up is not None:
         c_amt = m3.selectbox("Valor", cols, index=min(2, len(cols) - 1))
         neg_is = st.radio("Valores negativos são…", ["Despesas", "Receitas"], horizontal=True)
 
-        if st.button("Preparar lançamentos", type="primary", use_container_width=True):
-            rules = list_rules()
+        if st.button("Preparar lançamentos", type="primary", use_container_width=True, key="prep_csv"):
             dates = pd.to_datetime(df[c_date], dayfirst=True, errors="coerce").dt.date
-            rows = []
+            triples = []
             for i in range(len(df)):
-                dt = dates.iloc[i]
-                amt = _parse_amt(df[c_amt].iloc[i])
-                desc = str(df[c_desc].iloc[i])
-                if dt is None or pd.isna(dt) or amt is None:
-                    continue
-                if neg_is == "Despesas":
-                    tipo = "Despesa" if amt < 0 else "Receita"
-                else:
-                    tipo = "Receita" if amt < 0 else "Despesa"
-                cid, _ = categorize(desc, rules)
-                rows.append({
-                    "Importar": True, "Data": dt, "Descrição": desc,
-                    "Valor": round(abs(amt), 2), "Tipo": tipo,
-                    "Categoria": cat_by_id.get(cid, {}).get("name", ""),
-                })
-            ignored = len(df) - len(rows)
+                triples.append((dates.iloc[i], str(df[c_desc].iloc[i]), _parse_amt(df[c_amt].iloc[i])))
+            rows = _prepare_rows(triples, neg_is_expense=(neg_is == "Despesas"))
             st.session_state["import_df"] = pd.DataFrame(rows)
-            st.session_state["import_ignored"] = ignored
+            st.session_state["import_ignored"] = len(df) - len(rows)
 
-    # ---------- prévia editável ----------
-    if "import_df" in st.session_state and not st.session_state["import_df"].empty:
-        st.subheader("4. Revisar e importar")
-        if st.session_state.get("import_ignored"):
-            st.caption(f"{st.session_state['import_ignored']} linha(s) ignorada(s) (sem data/valor legível).")
-        edited = st.data_editor(
-            st.session_state["import_df"], use_container_width=True, num_rows="fixed", key="imp_editor",
-            column_config={
-                "Importar": st.column_config.CheckboxColumn("✓"),
-                "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
-                "Descrição": st.column_config.TextColumn("Descrição"),
-                "Valor": st.column_config.NumberColumn("Valor", format="%.2f"),
-                "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Despesa", "Receita"]),
-                "Categoria": st.column_config.SelectboxColumn("Categoria", options=[""] + cat_names),
-            },
-        )
-        n = int(edited["Importar"].sum())
-        if st.button(f"✅ Importar {n} lançamento(s)", type="primary", use_container_width=True, disabled=(n == 0)):
-            rate = 1.0 if currency == base else (latest_rate(currency, base) or 1.0)
-            payloads = []
-            for _, r in edited[edited["Importar"]].iterrows():
-                cat = cat_by_name.get(r["Categoria"])
-                payloads.append({
-                    "household_id": ctx["household_id"], "member_id": member["id"],
-                    "type": "expense" if r["Tipo"] == "Despesa" else "income",
-                    "amount_original": float(r["Valor"]), "currency_original": currency,
-                    "country": country, "exchange_rate": float(rate), "base_currency": base,
-                    "category_id": (cat["id"] if cat else None),
-                    "description": str(r["Descrição"])[:200],
-                    "occurred_on": r["Data"].isoformat(),
-                })
-            if payloads:
-                get_client().table("transactions").insert(payloads).execute()
-                st.session_state.pop("import_df", None)
-                st.success(f"{len(payloads)} lançamentos importados! 🎉")
-                st.balloons()
-                st.rerun()
+# ---------- prévia editável (compartilhada CSV/PDF) ----------
+if "import_df" in st.session_state and not st.session_state["import_df"].empty:
+    st.subheader("4. Revisar e importar")
+    if st.session_state.get("import_ignored"):
+        st.caption(f"{st.session_state['import_ignored']} linha(s) ignorada(s) (sem data/valor legível).")
+    edited = st.data_editor(
+        st.session_state["import_df"], use_container_width=True, num_rows="dynamic", key="imp_editor",
+        column_config={
+            "Importar": st.column_config.CheckboxColumn("✓"),
+            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+            "Descrição": st.column_config.TextColumn("Descrição"),
+            "Valor": st.column_config.NumberColumn("Valor", format="%.2f"),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Despesa", "Receita"]),
+            "Categoria": st.column_config.SelectboxColumn("Categoria", options=[""] + cat_names),
+        },
+    )
+    n = int(edited["Importar"].fillna(False).astype(bool).sum())
+    if st.button(f"✅ Importar {n} lançamento(s)", type="primary", use_container_width=True, disabled=(n == 0)):
+        rate = 1.0 if currency == base else (latest_rate(currency, base) or 1.0)
+        payloads = []
+        for _, r in edited[edited["Importar"].fillna(False).astype(bool)].iterrows():
+            if pd.isna(r["Data"]) or r["Valor"] is None or float(r["Valor"]) <= 0:
+                continue
+            cat = cat_by_name.get(r["Categoria"])
+            payloads.append({
+                "household_id": ctx["household_id"], "member_id": member["id"],
+                "type": "expense" if r["Tipo"] == "Despesa" else "income",
+                "amount_original": float(r["Valor"]), "currency_original": currency,
+                "country": country, "exchange_rate": float(rate), "base_currency": base,
+                "category_id": (cat["id"] if cat else None),
+                "description": str(r["Descrição"])[:200],
+                "occurred_on": (r["Data"].isoformat() if hasattr(r["Data"], "isoformat") else str(r["Data"])),
+            })
+        if payloads:
+            get_client().table("transactions").insert(payloads).execute()
+            st.session_state.pop("import_df", None)
+            st.success(f"{len(payloads)} lançamentos importados! 🎉")
+            st.balloons()
+            st.rerun()
 
 # ---------- regras de categorização ----------
 st.divider()
