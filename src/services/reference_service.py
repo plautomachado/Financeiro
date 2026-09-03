@@ -18,6 +18,15 @@ def get_household():
     return res.data[0] if res.data else None
 
 
+def create_my_household(family_name, base_currency="BRL", member_name="Eu"):
+    """Cria uma NOVA família isolada para o usuário logado (via função no banco)."""
+    res = _client().rpc("create_household", {
+        "family_name": family_name, "base_currency": base_currency, "member_name": member_name,
+    }).execute()
+    st.session_state.pop("context", None)
+    return res.data
+
+
 def list_members(active_only=True):
     q = _client().table("family_members").select("*").order("sort_order")
     if active_only:

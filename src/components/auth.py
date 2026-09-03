@@ -4,7 +4,7 @@ import streamlit as st
 from src.services.auth_service import (
     is_authenticated, sign_in, sign_out, current_user, restore_session,
 )
-from src.services.reference_service import load_context
+from src.services.reference_service import load_context, refresh_context, create_my_household
 
 
 def render_login():
@@ -44,8 +44,29 @@ def account_section():
         st.rerun()
 
 
+def render_onboarding():
+    st.markdown("## 👋 Bem-vindo ao RM Money")
+    st.caption("Vamos criar a sua família. Seus dados ficam **só seus** — ninguém mais vê.")
+    with st.form("onboarding"):
+        fam = st.text_input("Nome da família", placeholder="Ex.: Família Silva")
+        name = st.text_input("Seu nome", placeholder="Como você aparece nos lançamentos")
+        cur = st.selectbox("Moeda principal", ["BRL", "JPY", "EUR", "USD"])
+        ok = st.form_submit_button("Criar minha família", type="primary", use_container_width=True)
+    if ok:
+        if not fam.strip():
+            st.warning("Dê um nome para a sua família.")
+        else:
+            try:
+                create_my_household(fam.strip(), cur, (name.strip() or "Eu"))
+                refresh_context()
+                st.success("Família criada! 🎉")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Não consegui criar a família: {e}")
+
+
 def require_auth():
-    """Garante login + vínculo com a família. Chame no topo de cada página."""
+    """Garante login + família (mostra o onboarding se ainda não tiver). Chame no topo de cada página."""
     if not is_authenticated():
         restore_session()          # tenta relogar pelo cookie salvo
     if not is_authenticated():
@@ -53,9 +74,5 @@ def require_auth():
         st.stop()
     ctx = load_context()
     if not ctx.get("household_id"):
-        sidebar_account()
-        st.warning(
-            "Seu login ainda não está vinculado a uma família. "
-            "Rode o bloco de vínculo (insert into profiles…) no SQL Editor do Supabase."
-        )
+        render_onboarding()
         st.stop()
