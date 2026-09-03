@@ -9,9 +9,10 @@ from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
 from src.services.card_service import (
-    list_cards, create_card, deactivate_card, create_installment, list_installments,
+    list_cards, create_card, deactivate_card, create_installment, list_installments, spending_by_payment,
 )
 from src.utils.formatting import format_money
+from src.utils.dates import month_name
 
 inject_css()
 require_auth()
@@ -19,6 +20,33 @@ sidebar_account()
 ctx = load_context()
 
 st.title("💳 Cartões & parcelas")
+
+# ---------- Gastos por forma de pagamento ----------
+_today = date.today()
+_mc = st.columns(2)
+_m = _mc[0].selectbox("Mês", list(range(1, 13)), index=_today.month - 1, format_func=month_name, key="pay_m")
+_y = _mc[1].selectbox("Ano", [_today.year - 1, _today.year, _today.year + 1], index=1, key="pay_y")
+_sp = spending_by_payment(_y, _m)
+_base = _sp["base"]
+
+st.subheader("Gastos por forma de pagamento")
+_pc = st.columns(2)
+_pc[0].metric("💳 Crédito", format_money(_sp["credit"], _base))
+_pc[1].metric("🏦 Débito / conta", format_money(_sp["account"], _base))
+if _sp["none"] > 0:
+    st.caption(f"Sem forma de pagamento informada: {format_money(_sp['none'], _base)}")
+
+_allcards = {c["id"]: c for c in list_cards()}
+if _sp["per_card"]:
+    st.caption("**Fatura prevista por cartão** (soma dos gastos feitos nele):")
+    for _cid, _val in sorted(_sp["per_card"].items(), key=lambda x: -x[1]):
+        _c = _allcards.get(_cid)
+        st.markdown(f"• {_c['name'] if _c else 'Cartão'} — **{format_money(_val, _base)}**")
+
+st.info("A **fatura do cartão não é lançada** — ela já é a soma desses gastos. "
+        "Pagar a fatura é uma **Transferência** (sai da conta para quitar o cartão), não uma nova despesa. "
+        "Assim nada duplica. ✅")
+st.divider()
 
 # ---------- Cartões ----------
 st.subheader("Meus cartões")

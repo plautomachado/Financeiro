@@ -3,8 +3,35 @@ from datetime import date
 
 from src.db.client import get_client
 from src.services.reference_service import load_context
-from src.services.transaction_service import create_transaction
+from src.services.transaction_service import create_transaction, list_transactions
 from src.utils.dates import add_months
+
+
+def _num(x):
+    try:
+        return float(x or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def spending_by_payment(year, month):
+    """Despesas do mês (moeda-base) por forma de pagamento: crédito, conta (débito/dinheiro) e por cartão."""
+    ctx = load_context()
+    base = ctx["base_currency"]
+    txs = list_transactions(year=year, month=month, type="expense", limit=5000)
+    per_card, credit, account, none = {}, 0.0, 0.0, 0.0
+    for t in txs:
+        v = _num(t.get("amount_base"))
+        cc = t.get("credit_card_id")
+        ac = t.get("account_id")
+        if cc:
+            per_card[cc] = per_card.get(cc, 0) + v
+            credit += v
+        elif ac:
+            account += v
+        else:
+            none += v
+    return {"per_card": per_card, "credit": credit, "account": account, "none": none, "base": base}
 
 
 def _client():

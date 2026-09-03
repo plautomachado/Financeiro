@@ -85,11 +85,12 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
 .st-key-cofre_nav [data-testid="stVerticalBlock"]{ width:100% !important; gap:0 !important; }
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
-  flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important;
-  align-items:center; width:100% !important; justify-content:space-around;
+  display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important;
+  align-items:center; width:100% !important; justify-content:space-between !important;
 }
+.st-key-cofre_nav [data-testid="stHorizontalBlock"] > div,
 .st-key-cofre_nav [data-testid="stColumn"]{
-  flex:1 1 0 !important; width:auto !important; min-width:0 !important;
+  flex:1 1 0 !important; width:20% !important; min-width:0 !important; max-width:none !important;
 }
 .st-key-cofre_nav a{
   display:flex !important; flex-direction:column !important; align-items:center; justify-content:center;
