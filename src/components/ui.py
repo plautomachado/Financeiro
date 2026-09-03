@@ -104,6 +104,20 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 .st-key-cofre_nav a p{ margin:0 !important; font-size:.6rem !important; font-weight:600; }
 .st-key-cofre_nav a > span:first-child,
 .st-key-cofre_nav a [data-testid="stIconMaterial"]{ font-size:1.1rem !important; line-height:1; }
+
+/* botão flutuante de ATUALIZAR (pull-to-refresh não funciona dentro do iframe) */
+.st-key-cofre_refresh{ position:fixed !important; bottom:18px; left:14px; z-index:999998; width:auto !important; }
+.st-key-cofre_refresh button{
+  border-radius:50% !important; width:46px !important; height:46px; min-height:46px; padding:0 !important;
+  background:var(--cofre-brand) !important; color:#fff !important; border:none !important;
+  font-size:1.15rem; box-shadow:0 6px 18px -6px rgba(20,33,28,.55);
+}
+.st-key-cofre_refresh button:hover{ background:var(--cofre-brand-ink) !important; }
+
+/* rodapé */
+.cofre-footer{ text-align:center; color:var(--cofre-faint); font-size:.72rem;
+  padding:18px 0 8px; margin-top:8px; }
+.cofre-footer b{ color:var(--cofre-brand-ink); font-weight:600; }
 </style>
 """
 
@@ -127,3 +141,11 @@ def bottom_nav(active=""):
     with st.container(key="cofre_nav"):
         for path, label, icon in _PAGES:
             st.page_link(path, label=label, icon=icon)
+    # botão flutuante para atualizar os dados (substitui o "puxar pra baixo")
+    with st.container(key="cofre_refresh"):
+        if st.button("🔄", help="Atualizar dados"):
+            st.rerun()
+    st.markdown(
+        "<div class='cofre-footer'>Developed by <b>Plauto Machado</b> © 2026</div>",
+        unsafe_allow_html=True,
+    )
