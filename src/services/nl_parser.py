@@ -64,8 +64,31 @@ def parse_entry(text, members, categories, base_currency="BRL", cards=None):
     warnings = []
     res = {"raw": raw}
 
-    # valor
-    amount = _parse_amount(low)
+    # parcelas: "5 parcelas", "5x", "5 vezes"
+    parcelas = 1
+    mp = re.search(r"(\d+)\s*(?:x|parcelas?|vezes|vzs)\b", low)
+    if mp:
+        parcelas = int(mp.group(1))
+    res["parcelas"] = parcelas
+
+    # cartão (casa por nome) — guardado para não confundir o número do cartão com o valor
+    card = None
+    low_amt = low
+    if cards:
+        for c in cards:
+            nm = _strip(c.get("name"))
+            if nm and nm in low:
+                card = c
+                low_amt = low_amt.replace(nm, " ")
+                break
+    res["card"] = card
+    res["is_credit"] = any(w in low for w in ("credito", "cartao"))
+
+    # valor (remove o trecho de parcelas; entende "mil" = x1000)
+    low_amt = re.sub(r"\d+\s*(?:x|parcelas?|vezes|vzs)\b", " ", low_amt)
+    amount = _parse_amount(low_amt)
+    if amount is not None and re.search(r"\bmil\b", low_amt):
+        amount *= 1000
     if amount is None:
         warnings.append("Não encontrei o valor.")
     res["amount"] = amount
@@ -129,17 +152,6 @@ def parse_entry(text, members, categories, base_currency="BRL", cards=None):
     if "ontem" in low:
         d = date.today() - timedelta(days=1)
     res["date"] = d
-
-    # forma de pagamento (cartão de crédito)
-    card = None
-    if cards:
-        for c in cards:
-            name = _strip(c.get("name"))
-            if name and name in low:
-                card = c
-                break
-    res["card"] = card
-    res["is_credit"] = any(w in low for w in ("credito", "cartao"))
 
     res["warnings"] = warnings
     return res

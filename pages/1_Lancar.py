@@ -56,24 +56,41 @@ if res:
     mem_name = res["member"]["name"] if res.get("member") else "—"
     val_txt = format_money(res["amount"], res["currency"]) if res.get("amount") else "—"
     pay_txt = f" · 💳 {res['card']['name']}" if res.get("card") else ""
+    parc_txt = f" · {int(res.get('parcelas') or 1)}×" if int(res.get("parcelas") or 1) > 1 else ""
     st.info(f"**{type_pt}** · {val_txt} · {cat_name} · {mem_name} · "
-            f"{COUNTRY_LABELS.get(res['country'], res['country'])} · {res['date'].strftime('%d/%m/%Y')}{pay_txt}")
+            f"{COUNTRY_LABELS.get(res['country'], res['country'])} · {res['date'].strftime('%d/%m/%Y')}{pay_txt}{parc_txt}")
     for w in res.get("warnings", []):
         st.caption("⚠️ " + w)
     can_save = bool(res.get("amount")) and bool(res.get("member"))
     b1, b2 = st.columns(2)
     if b1.button("✅ Confirmar", type="primary", use_container_width=True, disabled=not can_save):
-        create_transaction(
-            type=res["type"], amount_original=res["amount"], currency_original=res["currency"],
-            country=res["country"], member_id=res["member"]["id"],
-            category_id=(res["category"]["id"] if res.get("category") else None),
-            credit_card_id=(res["card"]["id"] if res.get("card") else None),
-            description=res["raw"], occurred_on=res["date"],
-        )
-        st.session_state.pop("nl_result", None)
-        st.success("Lançado por texto! ✅")
-        st.balloons()
-        st.rerun()
+        _parc = int(res.get("parcelas") or 1)
+        if _parc > 1 and res.get("card") and res["type"] == "expense":
+            try:
+                from src.services.card_service import create_installment as _ci
+                _ci(description=(res.get("raw") or "Compra parcelada"), total_amount=res["amount"],
+                    currency=res["currency"], country=res["country"], member_id=res["member"]["id"],
+                    installments_count=_parc, first_date=res["date"],
+                    category_id=(res["category"]["id"] if res.get("category") else None),
+                    credit_card_id=res["card"]["id"])
+                st.session_state.pop("nl_result", None)
+                st.success(f"Compra em {_parc}× lançada por texto! ✅")
+                st.balloons()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao parcelar: {e}")
+        else:
+            create_transaction(
+                type=res["type"], amount_original=res["amount"], currency_original=res["currency"],
+                country=res["country"], member_id=res["member"]["id"],
+                category_id=(res["category"]["id"] if res.get("category") else None),
+                credit_card_id=(res["card"]["id"] if res.get("card") else None),
+                description=res["raw"], occurred_on=res["date"],
+            )
+            st.session_state.pop("nl_result", None)
+            st.success("Lançado por texto! ✅")
+            st.balloons()
+            st.rerun()
     if b2.button("✖️ Cancelar", use_container_width=True):
         st.session_state.pop("nl_result", None)
         st.rerun()
