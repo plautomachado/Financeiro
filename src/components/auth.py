@@ -3,6 +3,7 @@ import streamlit as st
 
 from src.services.auth_service import (
     is_authenticated, sign_in, sign_out, current_user, restore_session, change_password,
+    flush_pending_cookie,
 )
 from src.services.reference_service import load_context, refresh_context, create_my_household
 
@@ -17,9 +18,10 @@ def render_login():
     if ok:
         try:
             sign_in(email, password)
-            st.rerun()
         except Exception:
             st.error("Não foi possível entrar. Confira e-mail e senha.")
+        else:
+            st.rerun()
 
 
 def sidebar_account():
@@ -86,6 +88,7 @@ def require_auth():
     if not is_authenticated():
         render_login()
         st.stop()
+    flush_pending_cookie()     # grava o cookie de sessão numa execução que renderiza
     ctx = load_context()
     if not ctx.get("household_id"):
         render_onboarding()
