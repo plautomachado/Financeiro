@@ -20,6 +20,10 @@ def render_login():
             st.rerun()
         except Exception:
             st.error("Não foi possível entrar. Confira e-mail e senha.")
+    # TEMP (inspeção do menu): remover depois
+    from src.components.ui import inject_css as _ic, bottom_nav as _bn
+    _ic()
+    _bn("inicio")
 
 
 def sidebar_account():

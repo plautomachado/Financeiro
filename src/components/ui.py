@@ -86,14 +86,13 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 /* especificidade dobrada: vence a classe do Streamlit e força a largura total */
 .st-key-cofre_nav.st-key-cofre_nav{ width:100% !important; max-width:760px !important; }
 .st-key-cofre_nav [data-testid="stLayoutWrapper"]{ width:100% !important; }
-.st-key-cofre_nav [data-testid="stVerticalBlock"]{ width:100% !important; gap:0 !important; }
-.st-key-cofre_nav [data-testid="stHorizontalBlock"]{
-  display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important;
-  align-items:center; width:100% !important; justify-content:space-between !important;
+/* o bloco interno vira uma LINHA com 5 itens iguais (sem depender de st.columns) */
+.st-key-cofre_nav [data-testid="stVerticalBlock"]{
+  display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+  justify-content:space-around !important; align-items:center; gap:0 !important; width:100% !important;
 }
-.st-key-cofre_nav [data-testid="stHorizontalBlock"] > div,
-.st-key-cofre_nav [data-testid="stColumn"]{
-  flex:1 1 0 !important; width:20% !important; min-width:0 !important; max-width:none !important;
+.st-key-cofre_nav [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]{
+  flex:1 1 0 !important; width:20% !important; min-width:0 !important; max-width:20% !important;
 }
 .st-key-cofre_nav a{
   display:flex !important; flex-direction:column !important; align-items:center; justify-content:center;
@@ -125,9 +124,7 @@ _PAGES = [
 
 
 def bottom_nav(active=""):
-    """Barra inferior com navegação nativa (mantém a sessão ativa)."""
+    """Barra de menu (topo) com navegação nativa (mantém a sessão ativa)."""
     with st.container(key="cofre_nav"):
-        cols = st.columns(5)
-        for col, (path, label, icon) in zip(cols, _PAGES):
-            with col:
-                st.page_link(path, label=label, icon=icon)
+        for path, label, icon in _PAGES:
+            st.page_link(path, label=label, icon=icon)
