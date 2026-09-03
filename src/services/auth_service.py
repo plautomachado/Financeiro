@@ -92,3 +92,8 @@ def sign_out():
     _clear_cookie()
     for k in ("sb_client", "user", "context"):
         st.session_state.pop(k, None)
+
+
+def change_password(new_password):
+    """Altera a senha do usuário logado."""
+    return get_client().auth.update_user({"password": new_password})

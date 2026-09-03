@@ -2,7 +2,7 @@
 import streamlit as st
 
 from src.services.auth_service import (
-    is_authenticated, sign_in, sign_out, current_user, restore_session,
+    is_authenticated, sign_in, sign_out, current_user, restore_session, change_password,
 )
 from src.services.reference_service import load_context, refresh_context, create_my_household
 
@@ -42,6 +42,20 @@ def account_section():
     if c[1].button("Sair", use_container_width=True):
         sign_out()
         st.rerun()
+    with st.expander("🔑 Alterar minha senha"):
+        p1 = st.text_input("Nova senha", type="password", key="pw_new")
+        p2 = st.text_input("Repita a nova senha", type="password", key="pw_new2")
+        if st.button("Salvar nova senha", type="primary", key="pw_save"):
+            if len(p1) < 6:
+                st.warning("A senha precisa ter pelo menos 6 caracteres.")
+            elif p1 != p2:
+                st.warning("As senhas não conferem.")
+            else:
+                try:
+                    change_password(p1)
+                    st.success("Senha alterada! Use a nova no próximo login. ✅")
+                except Exception as e:
+                    st.error(f"Não consegui alterar: {e}")
 
 
 def render_onboarding():
