@@ -78,11 +78,12 @@ a[href*="share.streamlit.io"]{ display:none !important; }
 .st-key-cofre_nav{
   /* menu no TOPO (evita o badge do Streamlit, que fica no rodapé) */
   position:fixed !important; left:50%; transform:translateX(-50%); top:0; z-index:999999;
-  width:100%; max-width:760px; background:#FFFFFF;
+  width:100% !important; max-width:760px; background:#FFFFFF;
   border-bottom:1px solid var(--cofre-line); border-radius:0 0 16px 16px;
   padding:8px 4px 6px; box-shadow:0 8px 24px -14px rgba(20,33,28,.4);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
+.st-key-cofre_nav [data-testid="stLayoutWrapper"]{ width:100% !important; }
 .st-key-cofre_nav [data-testid="stVerticalBlock"]{ width:100% !important; gap:0 !important; }
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
   display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important;

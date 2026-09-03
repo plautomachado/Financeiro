@@ -58,7 +58,7 @@ def _parse_amount(low):
         return None
 
 
-def parse_entry(text, members, categories, base_currency="BRL"):
+def parse_entry(text, members, categories, base_currency="BRL", cards=None):
     raw = (text or "").strip()
     low = _strip(raw)
     warnings = []
@@ -129,6 +129,17 @@ def parse_entry(text, members, categories, base_currency="BRL"):
     if "ontem" in low:
         d = date.today() - timedelta(days=1)
     res["date"] = d
+
+    # forma de pagamento (cartão de crédito)
+    card = None
+    if cards:
+        for c in cards:
+            name = _strip(c.get("name"))
+            if name and name in low:
+                card = c
+                break
+    res["card"] = card
+    res["is_credit"] = any(w in low for w in ("credito", "cartao"))
 
     res["warnings"] = warnings
     return res

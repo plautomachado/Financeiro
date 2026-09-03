@@ -35,7 +35,12 @@ with st.form("nl_form"):
     )
     interpretar = st.form_submit_button("Interpretar", use_container_width=True)
 if interpretar and nl_text.strip():
-    res = parse_entry(nl_text, ctx["members"], ctx["categories"], base)
+    try:
+        from src.services.card_service import list_cards as _lc
+        _nl_cards = _lc()
+    except Exception:
+        _nl_cards = []
+    res = parse_entry(nl_text, ctx["members"], ctx["categories"], base, cards=_nl_cards)
     from src.services.rules_service import categorize
     _cid, _ = categorize(nl_text)
     if _cid:
@@ -50,8 +55,9 @@ if res:
     cat_name = res["category"]["name"] if res.get("category") else "—"
     mem_name = res["member"]["name"] if res.get("member") else "—"
     val_txt = format_money(res["amount"], res["currency"]) if res.get("amount") else "—"
+    pay_txt = f" · 💳 {res['card']['name']}" if res.get("card") else ""
     st.info(f"**{type_pt}** · {val_txt} · {cat_name} · {mem_name} · "
-            f"{COUNTRY_LABELS.get(res['country'], res['country'])} · {res['date'].strftime('%d/%m/%Y')}")
+            f"{COUNTRY_LABELS.get(res['country'], res['country'])} · {res['date'].strftime('%d/%m/%Y')}{pay_txt}")
     for w in res.get("warnings", []):
         st.caption("⚠️ " + w)
     can_save = bool(res.get("amount")) and bool(res.get("member"))
@@ -61,6 +67,7 @@ if res:
             type=res["type"], amount_original=res["amount"], currency_original=res["currency"],
             country=res["country"], member_id=res["member"]["id"],
             category_id=(res["category"]["id"] if res.get("category") else None),
+            credit_card_id=(res["card"]["id"] if res.get("card") else None),
             description=res["raw"], occurred_on=res["date"],
         )
         st.session_state.pop("nl_result", None)
