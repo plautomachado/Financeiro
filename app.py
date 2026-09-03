@@ -23,6 +23,15 @@ ctx = load_context()
 base = ctx["base_currency"]
 ensure_daily_rates()  # atualiza câmbio 1x/dia automaticamente
 
+# lança as recorrências marcadas como "débito automático" que já venceram
+if st.session_state.get("_recur_check") != date.today().isoformat():
+    st.session_state["_recur_check"] = date.today().isoformat()
+    try:
+        from src.services.recurring_service import auto_post_due
+        auto_post_due()
+    except Exception:
+        pass
+
 st.title("Início")
 
 # ---------- Filtros ----------

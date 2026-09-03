@@ -20,7 +20,7 @@ def list_recurring(active_only=True):
 
 def create_recurring(*, description, amount, currency, country, member_id,
                      category_id=None, account_id=None, type="expense",
-                     periodicity="monthly", due_day=1, start_date=None, end_date=None):
+                     periodicity="monthly", due_day=1, start_date=None, end_date=None, auto_post=False):
     ctx = load_context()
     payload = {
         "household_id": ctx["household_id"], "member_id": member_id, "type": type,
@@ -29,7 +29,13 @@ def create_recurring(*, description, amount, currency, country, member_id,
         "due_day": int(due_day), "start_date": (start_date or date.today()).isoformat(),
         "end_date": end_date.isoformat() if end_date else None, "is_active": True,
     }
+    if auto_post:
+        payload["auto_post"] = True   # só envia se True (resiliente se a coluna ainda não existir)
     return _client().table("recurring_transactions").insert(payload).execute()
+
+
+def update_recurring(rec_id, updates):
+    return _client().table("recurring_transactions").update(updates).eq("id", rec_id).execute()
 
 
 def deactivate_recurring(rec_id):
@@ -74,6 +80,19 @@ def mark_paid(rec, year, month, occurred_on=None):
 
 def unmark_paid(transaction_id):
     return delete_transaction(transaction_id)
+
+
+def auto_post_due(today=None):
+    """Lança sozinho as recorrências marcadas como 'débito automático' cujo vencimento
+    já passou (mês atual) e ainda não foram lançadas. Retorna quantas lançou."""
+    today = today or date.today()
+    posted = 0
+    for o in occurrences_for_month(today.year, today.month):
+        rec = o["recurring"]
+        if rec.get("auto_post") and (not o["paid"]) and o["due_date"] <= today:
+            mark_paid(rec, today.year, today.month)
+            posted += 1
+    return posted
 
 
 def to_base(amount, currency, base):
