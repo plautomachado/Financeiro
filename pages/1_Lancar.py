@@ -109,10 +109,31 @@ elif ttype == "contribution":
     else:
         st.info("Cadastre uma meta antes de registrar aportes.")
 
-accounts = [None] + ctx["accounts"]
-acc = st.selectbox("Conta / cartão", accounts,
-                   format_func=lambda a: "—" if a is None else f"{a['name']} ({a['currency']})")
-account_id = acc["id"] if acc else None
+# Conta / cartão (contas + cartões de crédito, tudo num só lugar)
+try:
+    from src.services.card_service import list_cards, create_installment
+    _cards = list_cards()
+except Exception:
+    _cards, create_installment = [], None
+
+pay_opts = [None] + [("acc", a) for a in ctx["accounts"]] + [("card", c) for c in _cards]
+
+
+def _pay_label(o):
+    if o is None:
+        return "—"
+    return f"{'💳 ' if o[0] == 'card' else ''}{o[1]['name']} ({o[1]['currency']})"
+
+
+pay = st.selectbox("Conta / cartão", pay_opts, format_func=_pay_label)
+account_id = pay[1]["id"] if pay and pay[0] == "acc" else None
+credit_card_id = pay[1]["id"] if pay and pay[0] == "card" else None
+
+parcelas = 1
+if credit_card_id and ttype == "expense":
+    parcelas = int(st.number_input("Parcelas", min_value=1, max_value=48, value=1, step=1))
+    if parcelas > 1 and amount > 0:
+        st.caption(f"➜ {parcelas}× de ~{format_money(round(amount / parcelas, 2), currency)} (uma por mês)")
 
 occurred = st.date_input("Data", value=date.today(), format="DD/MM/YYYY")
 desc = st.text_input("Descrição (opcional)")
@@ -125,13 +146,24 @@ if currency != base and amount > 0:
 if st.button("Salvar lançamento", type="primary", use_container_width=True):
     if amount <= 0:
         st.warning("Informe um valor maior que zero.")
+    elif credit_card_id and ttype == "expense" and parcelas > 1 and create_installment:
+        try:
+            create_installment(
+                description=(desc or "Compra parcelada"), total_amount=amount, currency=currency,
+                country=country, member_id=member["id"], installments_count=parcelas,
+                first_date=occurred, category_id=category_id, credit_card_id=credit_card_id,
+            )
+            st.success(f"Compra em {parcelas}× lançada! Uma parcela em cada mês.")
+            st.balloons()
+        except Exception as e:
+            st.error(f"Erro ao parcelar: {e}")
     else:
         try:
             create_transaction(
                 type=ttype, amount_original=amount, currency_original=currency,
                 country=country, member_id=member["id"], category_id=category_id,
-                goal_id=goal_id, account_id=account_id, description=desc or None,
-                occurred_on=occurred,
+                goal_id=goal_id, account_id=account_id, credit_card_id=credit_card_id,
+                description=desc or None, occurred_on=occurred,
             )
             st.success(f"Lançado: {format_money(amount, currency)} · {msel} · {type_label}")
             st.balloons()

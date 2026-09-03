@@ -29,6 +29,21 @@ def update_goal(goal_id, updates):
     return _client().table("financial_goals").update(updates).eq("id", goal_id).execute()
 
 
+def create_goal(*, name, type="custom", target_amount=None, currency="BRL", monthly_plan=None, config=None):
+    ctx = load_context()
+    existing = list_goals(active_only=False)
+    prio = max([g.get("priority", 0) for g in existing], default=0) + 1
+    return _client().table("financial_goals").insert({
+        "household_id": ctx["household_id"], "name": name, "type": type,
+        "target_amount": target_amount, "currency": currency, "monthly_plan": monthly_plan,
+        "config": config or {}, "priority": prio, "is_active": True,
+    }).execute()
+
+
+def deactivate_goal(goal_id):
+    return _client().table("financial_goals").update({"is_active": False}).eq("id", goal_id).execute()
+
+
 def contributions_total(goal_id):
     res = (_client().table("transactions").select("amount_base")
            .eq("type", "contribution").eq("goal_id", goal_id).execute().data)

@@ -83,8 +83,10 @@ a[href*="share.streamlit.io"]{ display:none !important; }
   padding:8px 4px 6px; box-shadow:0 8px 24px -14px rgba(20,33,28,.4);
 }
 /* mantém os 5 itens lado a lado (o Streamlit empilha colunas no celular) */
+.st-key-cofre_nav [data-testid="stVerticalBlock"]{ width:100% !important; gap:0 !important; }
 .st-key-cofre_nav [data-testid="stHorizontalBlock"]{
-  flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important; align-items:center;
+  flex-direction:row !important; flex-wrap:nowrap !important; gap:0 !important;
+  align-items:center; width:100% !important; justify-content:space-around;
 }
 .st-key-cofre_nav [data-testid="stColumn"]{
   flex:1 1 0 !important; width:auto !important; min-width:0 !important;

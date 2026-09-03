@@ -6,7 +6,9 @@ st.set_page_config(page_title="Metas", page_icon="🎯",
 from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
-from src.services.goal_service import list_goals, goal_progress, add_contribution, simulate, update_goal
+from src.services.goal_service import (
+    list_goals, goal_progress, add_contribution, simulate, update_goal, create_goal, deactivate_goal,
+)
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_label
 
@@ -76,6 +78,11 @@ for g in goals:
             update_goal(g["id"], upd)
             st.success("Meta atualizada!")
             st.rerun()
+        with st.popover("🗑 Excluir meta"):
+            st.caption("Excluir esta meta? Os aportes já feitos continuam nos lançamentos.")
+            if st.button("Confirmar exclusão", type="primary", key=f"gdel_{g['id']}"):
+                deactivate_goal(g["id"])
+                st.rerun()
 
     with st.expander("➕ Registrar aporte"):
         amt = st.number_input("Valor do aporte", min_value=0.0, step=100.0, key=f"apt_{g['id']}")
@@ -89,5 +96,21 @@ for g in goals:
                 st.warning("Informe um valor.")
 
     st.divider()
+
+with st.expander("➕ Nova meta"):
+    ngn = st.text_input("Nome", placeholder="Ex.: Viagem, Carro, Faculdade", key="newgoaln")
+    gc1, gc2 = st.columns(2)
+    TYPES_G = {"custom": "Personalizada", "emergency": "Reserva", "house": "Casa", "investment": "Investimento"}
+    ngt = gc1.selectbox("Tipo", list(TYPES_G.keys()), format_func=lambda t: TYPES_G[t], key="newgoalt")
+    ngc = gc2.selectbox("Moeda", ["BRL", "JPY", "EUR", "USD"], key="newgoalc")
+    ngtarget = st.number_input("Valor alvo", min_value=0.0, step=100.0, key="newgoaltg")
+    ngplan = st.number_input("Aporte mensal planejado", min_value=0.0, step=100.0, key="newgoalp")
+    if st.button("Criar meta", type="primary", key="newgoalsave"):
+        if ngn.strip():
+            create_goal(name=ngn.strip(), type=ngt, target_amount=ngtarget, currency=ngc, monthly_plan=ngplan)
+            st.success("Meta criada!")
+            st.rerun()
+        else:
+            st.warning("Informe o nome da meta.")
 
 bottom_nav("metas")
