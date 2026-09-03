@@ -48,14 +48,15 @@ def by_category(txs, categories, native=False):
     return dict(sorted(out.items(), key=lambda x: x[1], reverse=True))
 
 
-def by_member(txs, members):
+def by_member(txs, members, native=False):
+    f = "amount_original" if native else "amount_base"
     names = {m["id"]: m["name"] for m in members}
     out = {}
     for t in txs:
         if t["type"] != "expense":
             continue
         key = names.get(t["member_id"], "—")
-        out[key] = out.get(key, 0) + _num(t["amount_base"])
+        out[key] = out.get(key, 0) + _num(t[f])
     return out
 
 

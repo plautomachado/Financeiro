@@ -2,7 +2,7 @@
 from src.services.reference_service import load_context
 from src.services.transaction_service import list_transactions
 from src.services import dashboard_service as dash
-from src.services.budget_service import budget_status
+from src.services.budget_service import budget_status, COUNTRY_CCY
 from src.services.goal_service import list_goals, goal_progress
 from src.utils.dates import prev_month
 from src.utils.formatting import format_money, format_pct
@@ -14,29 +14,33 @@ def _pct_change(cur, prev):
     return (cur - prev) / prev * 100
 
 
-def build(year, month):
+def build(year, month, country=None):
+    """country=None -> família toda em R$ (base). country='JP'/'BR' -> só o país, na moeda nativa."""
     ctx = load_context()
     base = ctx["base_currency"]
     cats = ctx["categories"]
     members = ctx["members"]
+    native = country is not None
+    cur = COUNTRY_CCY.get(country, base) if native else base
 
-    s = dash.summary(year, month)
+    s = dash.summary(year, month, country=country, native=native)
     txs = s["_txs"]
     prev = s["prev"]
     py, pm = prev_month(year, month)
-    ptxs = list_transactions(year=py, month=pm)
+    ptxs = list_transactions(year=py, month=pm, country=country)
 
-    cat_now = dash.by_category(txs, cats)
-    cat_prev = dash.by_category(ptxs, cats)
-    by_mem = dash.by_member(txs, members)
-    by_ctry = dash.by_country(txs)
-    budgets = budget_status(year, month)
+    cat_now = dash.by_category(txs, cats, native=native)
+    cat_prev = dash.by_category(ptxs, cats, native=native)
+    by_mem = dash.by_member(txs, members, native=native)
+    by_ctry = dash.by_country(txs) if country is None else {}
+    budgets = budget_status(year, month, country)
     goals = [(g, goal_progress(g)) for g in list_goals()]
 
     return {
         "summary": s, "prev": prev, "by_category": cat_now, "by_member": by_mem,
-        "by_country": by_ctry, "budgets": budgets, "goals": goals, "base": base,
-        "insights": _insights(s, cat_now, cat_prev, by_ctry, budgets, goals, base),
+        "by_country": by_ctry, "budgets": budgets, "goals": goals,
+        "base": cur, "currency": cur, "country": country,
+        "insights": _insights(s, cat_now, cat_prev, by_ctry, budgets, goals, cur),
     }
 
 
@@ -91,6 +95,8 @@ def _insights(s, cat_now, cat_prev, ctry, budgets, goals, base):
 
     for g, p in goals:
         icon = "🛟" if g["type"] == "emergency" else ("🏠" if g["type"] == "house" else "🎯")
-        out.append((icon, f"{g['name']}: {format_pct(p['pct'], 0)} da meta ({fm(p['current'])} de {fm(p['target'])})."))
+        gc = p.get("currency", base)
+        out.append((icon, f"{g['name']}: {format_pct(p['pct'], 0)} da meta "
+                          f"({format_money(p['current'], gc)} de {format_money(p['target'], gc)})."))
 
     return out

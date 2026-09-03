@@ -26,9 +26,19 @@ c1, c2 = st.columns(2)
 month = c1.selectbox("Mês", list(range(1, 13)), index=today.month - 1, format_func=month_name)
 year = c2.selectbox("Ano", [today.year - 1, today.year, today.year + 1], index=1)
 
-rep = report_service.build(year, month)
+# país define a MOEDA do relatório (um país = moeda nativa; "Todos" = R$)
+COUNTRY_FLAG = {"BR": "🇧🇷 Brasil", "JP": "🇯🇵 Japão", "EU": "🇪🇺 Europa", "US": "🇺🇸 EUA"}
+fam_countries = sorted({m["default_country"] for m in ctx["members"]})
+sel_country = None
+if len(fam_countries) > 1:
+    opts = ["🌏 Todos"] + [COUNTRY_FLAG.get(c, c) for c in fam_countries]
+    pick = st.segmented_control("País", opts, default="🌏 Todos", key="rep_country") or "🌏 Todos"
+    sel_country = None if pick == "🌏 Todos" else next(c for c in fam_countries if COUNTRY_FLAG.get(c, c) == pick)
+
+rep = report_service.build(year, month, sel_country)
 s = rep["summary"]
 prev = rep["prev"]
+cur = rep["currency"]
 
 st.subheader(f"Fechamento de {month_name(month)}/{year}")
 
@@ -51,26 +61,26 @@ def _kpi(label, value, hero=False):
 
 st.markdown(
     '<div class="kpi-grid">'
-    + _kpi("Receitas", format_money(s["receitas"], base))
-    + _kpi("Despesas", format_money(s["despesas"], base))
-    + _kpi("Aportes", format_money(s["aportes"], base))
-    + _kpi("Saldo livre", format_money(s["saldo_livre"], base))
+    + _kpi("Receitas", format_money(s["receitas"], cur))
+    + _kpi("Despesas", format_money(s["despesas"], cur))
+    + _kpi("Aportes", format_money(s["aportes"], cur))
+    + _kpi("Saldo livre", format_money(s["saldo_livre"], cur))
     + _kpi("Taxa de economia", format_pct(s["taxa_economia"]), hero=True)
     + '</div>',
     unsafe_allow_html=True,
 )
 pm_y, pm_m = prev_month(year, month)
-st.caption(f"Mês anterior ({month_name(pm_m, short=True)}/{pm_y}): despesas {format_money(prev['despesas'], base)} "
+st.caption(f"Mês anterior ({month_name(pm_m, short=True)}/{pm_y}): despesas {format_money(prev['despesas'], cur)} "
            f"· economia {format_pct(prev['taxa_economia'])}")
 
 st.divider()
 
 # ---------- Principais categorias ----------
-st.subheader("Principais categorias")
+st.subheader(f"Principais categorias ({cur})")
 cat = rep["by_category"]
 if cat:
     top = dict(list(cat.items())[:6])
-    df = pd.DataFrame({"Categoria": list(top.keys()), base: list(top.values())}).set_index("Categoria")
+    df = pd.DataFrame({"Categoria": list(top.keys()), cur: list(top.values())}).set_index("Categoria")
     st.bar_chart(df, horizontal=True)
 else:
     st.caption("Sem despesas neste mês.")
@@ -81,16 +91,17 @@ mem = rep["by_member"]
 if mem:
     cols = st.columns(len(mem))
     for i, (name, val) in enumerate(mem.items()):
-        cols[i].metric(name, format_money(val, base))
+        cols[i].metric(name, format_money(val, cur))
 else:
     st.caption("—")
 
-# ---------- Brasil × Japão ----------
-st.subheader("Brasil × Japão")
-ctry = rep["by_country"]
-cc = st.columns(2)
-cc[0].metric("🇧🇷 Brasil", format_money(ctry.get("BR", 0), base))
-cc[1].metric("🇯🇵 Japão", format_money(ctry.get("JP", 0), base))
+# ---------- Brasil × Japão (só na visão "Todos", em R$) ----------
+if sel_country is None and len(fam_countries) > 1:
+    st.subheader("Brasil × Japão")
+    ctry = rep["by_country"]
+    cc = st.columns(2)
+    cc[0].metric("🇧🇷 Brasil", format_money(ctry.get("BR", 0), base))
+    cc[1].metric("🇯🇵 Japão", format_money(ctry.get("JP", 0), base))
 
 st.divider()
 
@@ -99,8 +110,8 @@ st.subheader("Orçamento planejado × realizado")
 budgets = rep["budgets"]
 if budgets:
     for b in budgets:
-        st.markdown(f"**{b['icon']} {b['category']}** — {format_money(b['spent'], base)} "
-                    f"/ {format_money(b['planned'], base)} ({format_pct(b['usage'], 0)})")
+        st.markdown(f"**{b['icon']} {b['category']}** — {format_money(b['spent'], b['currency'])} "
+                    f"/ {format_money(b['planned'], b['currency'])} ({format_pct(b['usage'], 0)})")
         st.progress(min(b["usage"] / 100, 1.0))
 else:
     st.caption("Nenhum orçamento definido neste mês.")
