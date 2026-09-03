@@ -11,10 +11,12 @@ def _num(x):
         return 0.0
 
 
-def _agg(txs):
-    receitas = sum(_num(t["amount_base"]) for t in txs if t["type"] == "income")
-    despesas = sum(_num(t["amount_base"]) for t in txs if t["type"] == "expense")
-    aportes = sum(_num(t["amount_base"]) for t in txs if t["type"] == "contribution")
+def _agg(txs, native=False):
+    """native=True soma na moeda ORIGINAL (¥, R$...); senão na moeda base (R$)."""
+    f = "amount_original" if native else "amount_base"
+    receitas = sum(_num(t[f]) for t in txs if t["type"] == "income")
+    despesas = sum(_num(t[f]) for t in txs if t["type"] == "expense")
+    aportes = sum(_num(t[f]) for t in txs if t["type"] == "contribution")
     return {
         "receitas": receitas,
         "despesas": despesas,
@@ -25,23 +27,24 @@ def _agg(txs):
     }
 
 
-def summary(year, month, member_id=None, country=None):
+def summary(year, month, member_id=None, country=None, native=False):
     txs = list_transactions(year=year, month=month, member_id=member_id, country=country)
-    cur = _agg(txs)
+    cur = _agg(txs, native)
     py, pm = prev_month(year, month)
-    cur["prev"] = _agg(list_transactions(year=py, month=pm, member_id=member_id, country=country))
+    cur["prev"] = _agg(list_transactions(year=py, month=pm, member_id=member_id, country=country), native)
     cur["_txs"] = txs
     return cur
 
 
-def by_category(txs, categories):
+def by_category(txs, categories, native=False):
+    f = "amount_original" if native else "amount_base"
     names = {c["id"]: f"{c.get('icon', '')} {c['name']}".strip() for c in categories}
     out = {}
     for t in txs:
         if t["type"] != "expense":
             continue
         key = names.get(t["category_id"], "Outros")
-        out[key] = out.get(key, 0) + _num(t["amount_base"])
+        out[key] = out.get(key, 0) + _num(t[f])
     return dict(sorted(out.items(), key=lambda x: x[1], reverse=True))
 
 

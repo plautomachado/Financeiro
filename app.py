@@ -35,16 +35,29 @@ if st.session_state.get("_recur_check") != date.today().isoformat():
 st.title("Início")
 
 # ---------- Filtros ----------
+COUNTRY_FLAG = {"BR": "🇧🇷 Brasil", "JP": "🇯🇵 Japão", "EU": "🇪🇺 Europa", "US": "🇺🇸 EUA"}
+COUNTRY_CCY = {"BR": "BRL", "JP": "JPY", "EU": "EUR", "US": "USD"}
 today = date.today()
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 month = c1.selectbox("Mês", list(range(1, 13)), index=today.month - 1, format_func=month_name)
 year = c2.selectbox("Ano", [today.year - 1, today.year, today.year + 1], index=1)
+
+# país define a MOEDA da visão: um país = moeda nativa (¥, R$); "Todos" = tudo em R$
+fam_countries = sorted({m["default_country"] for m in ctx["members"]})
+sel_country = None
+if len(fam_countries) > 1:
+    opts = ["🌏 Todos"] + [COUNTRY_FLAG.get(c, c) for c in fam_countries]
+    pick = st.segmented_control("País", opts, default="🌏 Todos") or "🌏 Todos"
+    sel_country = None if pick == "🌏 Todos" else next(c for c in fam_countries if COUNTRY_FLAG.get(c, c) == pick)
+
 member_opts = {"Família inteira": None}
 member_opts.update({m["name"]: m["id"] for m in ctx["members"]})
-member_name = c3.selectbox("Pessoa", list(member_opts.keys()))
+member_name = st.selectbox("Pessoa", list(member_opts.keys()))
 member_id = member_opts[member_name]
 
-s = dash.summary(year, month, member_id=member_id)
+native = sel_country is not None
+disp_cur = COUNTRY_CCY.get(sel_country, base) if native else base
+s = dash.summary(year, month, member_id=member_id, country=sel_country, native=native)
 
 
 # ---------- KPIs (grade 2 colunas, estilo mockup) ----------
@@ -55,10 +68,10 @@ def _kpi(label, value, hero=False):
 
 st.markdown(
     '<div class="kpi-grid">'
-    + _kpi("Receitas", format_money(s["receitas"], base))
-    + _kpi("Despesas", format_money(s["despesas"], base))
-    + _kpi("Aportes", format_money(s["aportes"], base))
-    + _kpi("Saldo livre", format_money(s["saldo_livre"], base))
+    + _kpi("Receitas", format_money(s["receitas"], disp_cur))
+    + _kpi("Despesas", format_money(s["despesas"], disp_cur))
+    + _kpi("Aportes", format_money(s["aportes"], disp_cur))
+    + _kpi("Saldo livre", format_money(s["saldo_livre"], disp_cur))
     + _kpi("Taxa de economia", format_pct(s["taxa_economia"]), hero=True)
     + '</div>',
     unsafe_allow_html=True,
@@ -68,20 +81,21 @@ st.divider()
 txs = s["_txs"]
 
 # ---------- Despesas por categoria ----------
-st.subheader("Despesas por categoria")
-cat = dash.by_category(txs, ctx["categories"])
+st.subheader(f"Despesas por categoria ({disp_cur})")
+cat = dash.by_category(txs, ctx["categories"], native=native)
 if cat:
-    df = pd.DataFrame({"Categoria": list(cat.keys()), base: list(cat.values())}).set_index("Categoria")
+    df = pd.DataFrame({"Categoria": list(cat.keys()), disp_cur: list(cat.values())}).set_index("Categoria")
     st.bar_chart(df, horizontal=True)
 else:
     st.info("Sem despesas lançadas neste mês ainda. Use **➕ Lançar** para começar.")
 
-# ---------- Brasil × Japão ----------
-st.subheader("Brasil × Japão")
-country = dash.by_country(txs)
-cc1, cc2 = st.columns(2)
-cc1.metric("🇧🇷 Brasil", format_money(country.get("BR", 0), base))
-cc2.metric("🇯🇵 Japão", format_money(country.get("JP", 0), base))
+# ---------- Brasil × Japão (só na visão "Todos", em R$) ----------
+if sel_country is None and len(fam_countries) > 1:
+    st.subheader("Brasil × Japão")
+    country = dash.by_country(txs)
+    cc1, cc2 = st.columns(2)
+    cc1.metric("🇧🇷 Brasil", format_money(country.get("BR", 0), base))
+    cc2.metric("🇯🇵 Japão", format_money(country.get("JP", 0), base))
 
 # ---------- Metas ----------
 st.divider()
