@@ -31,7 +31,18 @@ c1, c2 = st.columns(2)
 month = c1.selectbox("Mês", list(range(1, 13)), index=today.month - 1, format_func=month_name)
 year = c2.selectbox("Ano", [today.year - 1, today.year, today.year + 1], index=1)
 
+# filtro de país (ex.: ver/pagar só as contas do Brasil)
+COUNTRY_FLAG = {"BR": "🇧🇷 Brasil", "JP": "🇯🇵 Japão", "EU": "🇪🇺 Europa", "US": "🇺🇸 EUA"}
+fam_countries = sorted({m["default_country"] for m in ctx["members"]})
+sel_country = None
+if len(fam_countries) > 1:
+    opts = ["🌏 Todos"] + [COUNTRY_FLAG.get(c, c) for c in fam_countries]
+    pick = st.segmented_control("País", opts, default="🌏 Todos", key="rec_country") or "🌏 Todos"
+    sel_country = None if pick == "🌏 Todos" else next(c for c in fam_countries if COUNTRY_FLAG.get(c, c) == pick)
+
 occs = occurrences_for_month(year, month)
+if sel_country:
+    occs = [o for o in occs if o["recurring"].get("country") == sel_country]
 if not occs:
     st.info("Nenhuma recorrência para este mês. Cadastre em **➕ Nova recorrência** abaixo.")
 
