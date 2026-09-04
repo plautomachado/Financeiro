@@ -105,26 +105,6 @@ if sel_country is None and len(fam_countries) > 1:
     cc1.metric("🇧🇷 Brasil", format_money(country.get("BR", 0), base))
     cc2.metric("🇯🇵 Japão", format_money(country.get("JP", 0), base))
 
-# ---------- Evolução (últimos 6 meses) ----------
-st.divider()
-st.subheader(f"📈 Evolução — últimos 6 meses ({disp_cur})")
-serie = dash.monthly_series(year, month, n=6, member_id=member_id, country=sel_country, native=native)
-if any(x["despesas"] or x["receitas"] for x in serie):
-    labels = [f"{month_name(x['m'], short=True)}/{str(x['y'])[2:]}" for x in serie]
-    df_ev = pd.DataFrame(
-        {"Receitas": [x["receitas"] for x in serie], "Despesas": [x["despesas"] for x in serie]},
-        index=labels,
-    )
-    st.line_chart(df_ev, color=["#0E7C66", "#C2442E"])
-    _dm = serie[-1]["despesas"]
-    _dp = serie[-2]["despesas"] if len(serie) >= 2 else 0
-    if _dp:
-        _ch = (_dm - _dp) / _dp * 100
-        seta = "🔺" if _ch > 0 else "🔻"
-        st.caption(f"{seta} Despesas {format_pct(abs(_ch), 0)} vs. o mês anterior.")
-else:
-    st.caption("Sem dados suficientes ainda para o gráfico.")
-
 # ---------- Metas ----------
 st.divider()
 st.subheader("Metas")
