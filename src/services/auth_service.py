@@ -7,6 +7,9 @@ from src.db.client import get_client
 
 _COOKIE = "rm_session"
 _MAX_AGE = 60 * 60 * 24 * 30   # 30 dias
+# flags essenciais p/ o cookie sobreviver DENTRO do iframe do Streamlit Cloud:
+# SameSite=None + Secure + Partitioned (senão o navegador bloqueia em iframe).
+_COOKIE_KW = dict(max_age=_MAX_AGE, same_site="none", secure=True, partitioned=True)
 
 
 def current_user():
@@ -34,7 +37,7 @@ def _save_cookie(session):
         return
     try:
         ck.set(_COOKIE, json.dumps({"at": session.access_token, "rt": session.refresh_token}),
-               max_age=_MAX_AGE)
+               **_COOKIE_KW)
     except Exception:
         pass
 
@@ -61,7 +64,7 @@ def flush_pending_cookie():
     if not ck:
         return
     try:
-        ck.set(_COOKIE, json.dumps(pend), max_age=_MAX_AGE)
+        ck.set(_COOKIE, json.dumps(pend), **_COOKIE_KW)
         st.session_state.pop("_pending_cookie", None)
     except Exception:
         pass
@@ -83,46 +86,60 @@ def sign_in(email, password):
     return res
 
 
-def restore_session():
-    """Tenta relogar a partir do cookie salvo. Retorna True se conseguiu.
+def _ctx_cookie(name):
+    """Lê o cookie direto do request (server-side): instantâneo e sem a corrida do componente."""
+    try:
+        return st.context.cookies.get(name)
+    except Exception:
+        return None
 
-    A lib de cookie cacheia um {} vazio na 1ª execução da sessão e não relê
-    sozinha: por isso refresh() força reler o cookie real do navegador, e damos
-    UMA chance de recarregar (a hidratação do componente leva um ciclo) antes de
-    concluir que o login é mesmo necessário.
+
+def _parse_cookie(raw):
+    """Cookie pode vir como dict, JSON puro ou JSON percent-encoded (js-cookie)."""
+    from urllib.parse import unquote
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return None
+    for s in (raw, unquote(raw)):
+        try:
+            return json.loads(s)
+        except Exception:
+            continue
+    return None
+
+
+def restore_session():
+    """Relogar a partir do cookie salvo. Retorna True se conseguiu.
+
+    Leitura PRINCIPAL via st.context.cookies (server-side, chega no request, sem
+    corrida). Se vier vazio, tenta o componente como reserva.
     """
     if is_authenticated():
         return True
-    ck = _cookies()
-    if not ck:
+    raw = _ctx_cookie(_COOKIE)
+    if not raw:                       # reserva: componente de cookie
+        ck = _cookies()
+        if ck:
+            try:
+                ck.refresh()
+            except Exception:
+                pass
+            try:
+                raw = ck.get(_COOKIE)
+            except Exception:
+                raw = None
+    data = _parse_cookie(raw)
+    if not data or "at" not in data:
         return False
     try:
-        ck.refresh()   # ignora o cache vazio e relê os cookies reais
-    except Exception:
-        pass
-    raw = None
-    try:
-        raw = ck.get(_COOKIE)
-    except Exception:
-        raw = None
-    if not raw:
-        # o componente pode não ter hidratado ainda: recarrega UMA vez e só então
-        # deixa a página mostrar o login (evita pedir senha à toa).
-        if not st.session_state.get("_cookie_retry"):
-            st.session_state["_cookie_retry"] = True
-            import time
-            time.sleep(0.35)
-            st.rerun()
-        return False
-    try:
-        data = raw if isinstance(raw, dict) else json.loads(raw)
         client = get_client()
         res = client.auth.set_session(data["at"], data["rt"])
         if res and res.session:
             client.postgrest.auth(res.session.access_token)
             st.session_state.user = res.user
             st.session_state.pop("_cookie_retry", None)
-            _save_cookie(res.session)   # tokens podem ter sido renovados
+            _save_cookie(res.session)   # regrava (tokens podem ter sido renovados)
             return True
     except Exception:
         _clear_cookie()
