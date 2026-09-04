@@ -3,7 +3,7 @@ import streamlit as st
 
 from src.services.auth_service import (
     is_authenticated, sign_in, sign_out, current_user, restore_session, change_password,
-    flush_pending_cookie, login_diagnostics,
+    flush_pending_cookie,
 )
 from src.services.reference_service import load_context, refresh_context, create_my_household
 
@@ -22,8 +22,6 @@ def render_login():
             st.error("Não foi possível entrar. Confira e-mail e senha.")
         else:
             st.rerun()
-    with st.expander("🔎 diagnóstico (temporário)"):
-        st.caption(login_diagnostics())
 
 
 def sidebar_account():
@@ -60,8 +58,6 @@ def account_section():
                     st.success("Senha alterada! Use a nova no próximo login. ✅")
                 except Exception as e:
                     st.error(f"Não consegui alterar: {e}")
-    with st.expander("🔎 diagnóstico do login (temporário)"):
-        st.caption(login_diagnostics())
 
 
 def render_onboarding():
