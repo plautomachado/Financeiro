@@ -67,3 +67,32 @@ def by_country(txs):
             continue
         out[t["country"]] = out.get(t["country"], 0) + _num(t["amount_base"])
     return out
+
+
+def country_totals(year, month, member_id=None):
+    """Gastos do mês por país na MOEDA NATIVA (¥, R$...). Ignora filtro de país (visão geral)."""
+    txs = list_transactions(year=year, month=month, member_id=member_id)
+    out = {}
+    for t in txs:
+        if t["type"] != "expense":
+            continue
+        out[t["country"]] = out.get(t["country"], 0) + _num(t.get("amount_original"))
+    return out
+
+
+def monthly_series(year, month, n=6, member_id=None, country=None, native=False):
+    """Receitas e despesas dos últimos n meses (terminando em year/month)."""
+    f = "amount_original" if native else "amount_base"
+    window = []
+    y, m = year, month
+    for _ in range(n):
+        window.append((y, m))
+        y, m = prev_month(y, m)
+    window.reverse()
+    out = []
+    for (yr, mo) in window:
+        txs = list_transactions(year=yr, month=mo, member_id=member_id, country=country)
+        rec = sum(_num(t[f]) for t in txs if t["type"] == "income")
+        desp = sum(_num(t[f]) for t in txs if t["type"] == "expense")
+        out.append({"y": yr, "m": mo, "receitas": rec, "despesas": desp})
+    return out

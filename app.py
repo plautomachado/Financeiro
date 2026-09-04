@@ -55,6 +55,14 @@ member_opts.update({m["name"]: m["id"] for m in ctx["members"]})
 member_name = st.selectbox("Pessoa", list(member_opts.keys()))
 member_id = member_opts[member_name]
 
+# ---------- Resumo no topo: gastos do mês por país, cada um na sua moeda ----------
+if len(fam_countries) > 1:
+    ct = dash.country_totals(year, month, member_id=member_id)
+    cols = st.columns(len(fam_countries))
+    for i, c in enumerate(fam_countries):
+        cols[i].metric(COUNTRY_FLAG.get(c, c), format_money(ct.get(c, 0), COUNTRY_CCY.get(c, base)))
+    st.caption("Gasto do mês em cada país (na moeda de lá).")
+
 native = sel_country is not None
 disp_cur = COUNTRY_CCY.get(sel_country, base) if native else base
 s = dash.summary(year, month, member_id=member_id, country=sel_country, native=native)
@@ -96,6 +104,26 @@ if sel_country is None and len(fam_countries) > 1:
     cc1, cc2 = st.columns(2)
     cc1.metric("🇧🇷 Brasil", format_money(country.get("BR", 0), base))
     cc2.metric("🇯🇵 Japão", format_money(country.get("JP", 0), base))
+
+# ---------- Evolução (últimos 6 meses) ----------
+st.divider()
+st.subheader(f"📈 Evolução — últimos 6 meses ({disp_cur})")
+serie = dash.monthly_series(year, month, n=6, member_id=member_id, country=sel_country, native=native)
+if any(x["despesas"] or x["receitas"] for x in serie):
+    labels = [f"{month_name(x['m'], short=True)}/{str(x['y'])[2:]}" for x in serie]
+    df_ev = pd.DataFrame(
+        {"Receitas": [x["receitas"] for x in serie], "Despesas": [x["despesas"] for x in serie]},
+        index=labels,
+    )
+    st.line_chart(df_ev, color=["#0E7C66", "#C2442E"])
+    _dm = serie[-1]["despesas"]
+    _dp = serie[-2]["despesas"] if len(serie) >= 2 else 0
+    if _dp:
+        _ch = (_dm - _dp) / _dp * 100
+        seta = "🔺" if _ch > 0 else "🔻"
+        st.caption(f"{seta} Despesas {format_pct(abs(_ch), 0)} vs. o mês anterior.")
+else:
+    st.caption("Sem dados suficientes ainda para o gráfico.")
 
 # ---------- Metas ----------
 st.divider()
