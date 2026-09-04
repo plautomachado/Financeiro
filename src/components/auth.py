@@ -60,6 +60,8 @@ def account_section():
                     st.success("Senha alterada! Use a nova no próximo login. ✅")
                 except Exception as e:
                     st.error(f"Não consegui alterar: {e}")
+    with st.expander("🔎 diagnóstico do login (temporário)"):
+        st.caption(login_diagnostics())
 
 
 def render_onboarding():

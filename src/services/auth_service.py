@@ -7,9 +7,18 @@ from src.db.client import get_client
 
 _COOKIE = "rm_session"
 _MAX_AGE = 60 * 60 * 24 * 30   # 30 dias
-# flags essenciais p/ o cookie sobreviver DENTRO do iframe do Streamlit Cloud:
-# SameSite=None + Secure + Partitioned (senão o navegador bloqueia em iframe).
-_COOKIE_KW = dict(max_age=_MAX_AGE, same_site="none", secure=True, partitioned=True)
+
+
+def _cookie_kwargs():
+    """Flags p/ o cookie sobreviver no iframe do Streamlit Cloud E não virar cookie de sessão.
+
+    - SameSite=None + Secure + Partitioned: passar pelo iframe sem ser bloqueado.
+    - expires + max_age: expiração ABSOLUTA (senão alguns navegadores tratam como
+      cookie de sessão e apagam ao fechar).
+    """
+    from datetime import datetime, timedelta
+    return dict(max_age=_MAX_AGE, expires=datetime.now() + timedelta(seconds=_MAX_AGE),
+                same_site="none", secure=True, partitioned=True)
 
 
 def current_user():
@@ -37,7 +46,7 @@ def _save_cookie(session):
         return
     try:
         ck.set(_COOKIE, json.dumps({"at": session.access_token, "rt": session.refresh_token}),
-               **_COOKIE_KW)
+               **_cookie_kwargs())
     except Exception:
         pass
 
@@ -64,7 +73,7 @@ def flush_pending_cookie():
     if not ck:
         return
     try:
-        ck.set(_COOKIE, json.dumps(pend), **_COOKIE_KW)
+        ck.set(_COOKIE, json.dumps(pend), **_cookie_kwargs())
         st.session_state.pop("_pending_cookie", None)
     except Exception:
         pass
@@ -117,20 +126,29 @@ def restore_session():
     """
     if is_authenticated():
         return True
-    raw = _ctx_cookie(_COOKIE)
-    if not raw:                       # reserva: componente de cookie
-        ck = _cookies()
-        if ck:
-            try:
-                ck.refresh()
-            except Exception:
-                pass
-            try:
-                raw = ck.get(_COOKIE)
-            except Exception:
-                raw = None
+    # PRINCIPAL: componente (no Streamlit Cloud st.context.cookies vem vazio).
+    raw = None
+    ck = _cookies()
+    if ck:
+        try:
+            ck.refresh()               # relê os cookies reais do navegador
+        except Exception:
+            pass
+        try:
+            raw = ck.get(_COOKIE)
+        except Exception:
+            raw = None
+    if not raw:                        # reserva: leitura server-side (outros hosts)
+        raw = _ctx_cookie(_COOKIE)
     data = _parse_cookie(raw)
     if not data or "at" not in data:
+        # o componente pode não ter hidratado ainda: recarrega UMA vez antes de
+        # concluir que precisa logar (evita pedir senha à toa numa sessão nova).
+        if not raw and not st.session_state.get("_cookie_retry"):
+            st.session_state["_cookie_retry"] = True
+            import time
+            time.sleep(0.3)
+            st.rerun()
         return False
     try:
         client = get_client()
