@@ -159,3 +159,27 @@ def sign_out():
 def change_password(new_password):
     """Altera a senha do usuário logado."""
     return get_client().auth.update_user({"password": new_password})
+
+
+def login_diagnostics():
+    """Diagnóstico temporário do cookie de sessão (p/ achar por que o login não persiste)."""
+    parts = []
+    try:
+        c = dict(st.context.cookies)
+        parts.append(f"servidor: {sorted(c.keys())} · rm_session={'SIM' if _COOKIE in c else 'não'}")
+    except Exception as e:
+        parts.append(f"servidor: ERRO {type(e).__name__}")
+    try:
+        ck = _cookies()
+        if ck:
+            try:
+                ck.refresh()
+            except Exception:
+                pass
+            allc = ck.getAll() or {}
+            parts.append(f"componente: {sorted(allc.keys())} · rm_session={'SIM' if _COOKIE in allc else 'não'}")
+        else:
+            parts.append("componente: indisponível")
+    except Exception as e:
+        parts.append(f"componente: ERRO {type(e).__name__}")
+    return "  ||  ".join(parts)
