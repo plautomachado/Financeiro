@@ -26,6 +26,19 @@ def _num(x):
         return 0.0
 
 
+def _convert(amount, from_cur, to_cur):
+    """Converte entre moedas via base (ex.: € -> R$ -> ¥). Sem taxa, mantém o valor."""
+    amount = _num(amount)
+    if not amount or from_cur == to_cur:
+        return amount
+    base = load_context()["base_currency"]
+    rf = 1.0 if from_cur == base else latest_rate(from_cur, base)
+    rt = 1.0 if to_cur == base else latest_rate(to_cur, base)
+    if not rf or not rt:
+        return amount
+    return amount * rf / rt
+
+
 def list_budgets(year, month, country=None):
     q = (_client().table("monthly_budgets").select("*")
          .eq("year", year).eq("month", month))
@@ -83,20 +96,21 @@ def budget_status(year, month, country=None):
         if not cid:                 # linha de "teto do mês" (sem categoria) -> tratada à parte
             continue
         ctry = b.get("country", "BR")
-        cur = b.get("currency") or COUNTRY_CCY.get(ctry, base)
+        src_cur = b.get("currency") or COUNTRY_CCY.get(ctry, base)
+        native_cur = COUNTRY_CCY.get(ctry, base)
         cat = cats.get(cid, {})
-        if country:                         # visão de um país -> moeda nativa
-            planned = _num(b["planned_amount"])
+        if country:                         # visão de um país -> moeda do país (converte o valor se preciso)
+            planned = _convert(b["planned_amount"], src_cur, native_cur)
             gasto = spent_native.get((cid, ctry), 0)
-            disp_cur = cur
+            disp_cur = native_cur
         else:                               # visão "Todos" -> converte para base
-            rate = 1.0 if cur == base else (latest_rate(cur, base) or 1.0)
-            planned = _num(b["planned_amount"]) * rate
+            planned = _convert(b["planned_amount"], src_cur, base)
             gasto = spent_base.get((cid, ctry), 0)
             disp_cur = base
         usage = budget_usage(gasto, planned)
         rows.append({
             "id": b["id"], "category_id": cid, "country": ctry, "currency": disp_cur,
+            "src_amount": _num(b["planned_amount"]), "src_currency": src_cur,
             "category": cat.get("name", "—"), "icon": cat.get("icon", ""),
             "planned": planned, "spent": gasto, "available": planned - gasto,
             "usage": usage, "projection": budget_projection(gasto, day, total_days),
@@ -142,19 +156,21 @@ def total_status(year, month, country=None):
     caps = get_total_budget(year, month, country)
     txs = list_transactions(year=year, month=month, type="expense", country=country)
 
+    src_amount, src_currency = None, None
     if country:
         cur = COUNTRY_CCY.get(country, base)
         spent = sum(_num(t.get("amount_original")) for t in txs)
-        planned = _num(caps[0]["planned_amount"]) if caps else 0.0
-        cap_id = caps[0]["id"] if caps else None
+        if caps:
+            src_amount = _num(caps[0]["planned_amount"])
+            src_currency = caps[0].get("currency") or cur
+            planned = _convert(src_amount, src_currency, cur)   # ex.: € -> ¥
+            cap_id = caps[0]["id"]
+        else:
+            planned, cap_id = 0.0, None
     else:
         cur = base
         spent = sum(_num(t.get("amount_base")) for t in txs)
-        planned = 0.0
-        for c in caps:
-            cc = c.get("currency") or base
-            rate = 1.0 if cc == base else (latest_rate(cc, base) or 1.0)
-            planned += _num(c["planned_amount"]) * rate
+        planned = sum(_convert(c["planned_amount"], c.get("currency") or base, base) for c in caps)
         cap_id = None
 
     if planned <= 0:
@@ -165,6 +181,7 @@ def total_status(year, month, country=None):
     usage = budget_usage(spent, planned)
     return {
         "id": cap_id, "currency": cur, "planned": planned, "spent": spent,
+        "src_amount": src_amount, "src_currency": src_currency,
         "available": planned - spent, "usage": usage,
         "projection": budget_projection(spent, day, total_days),
         "status": budget_status_label(usage),

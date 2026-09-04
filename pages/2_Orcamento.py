@@ -56,12 +56,16 @@ with st.container(border=True):
         else:
             st.caption("Escolha um país (🇧🇷/🇯🇵) acima para definir o teto de cada um.")
     else:
-        step = 1000.0 if tcur == "JPY" else 100.0
-        cap_in = st.number_input(f"Meta de gasto do mês ({tcur})", min_value=0.0, step=step,
-                                 value=float(ts["planned"]) if ts else 0.0, key="cap_input")
+        cur_opts = [tcur] + [c for c in ["JPY", "BRL", "EUR", "USD"] if c != tcur]
+        cc1, cc2 = st.columns([1, 2])
+        idx = cur_opts.index(ts["src_currency"]) if ts and ts.get("src_currency") in cur_opts else 0
+        cap_cur = cc1.selectbox("Moeda", cur_opts, index=idx, key="cap_cur")
+        step = 1000.0 if cap_cur == "JPY" else (1.0 if cap_cur in ("EUR", "USD") else 100.0)
+        cap_in = cc2.number_input(f"Meta do mês ({cap_cur})", min_value=0.0, step=step,
+                                  value=float(ts["src_amount"]) if ts and ts.get("src_amount") else 0.0, key="cap_input")
         b1, b2 = st.columns([3, 1])
         if b1.button("Salvar teto", type="primary", use_container_width=True, key="cap_save"):
-            upsert_total_budget(year, month, cap_in, tcur, sel_country)
+            upsert_total_budget(year, month, cap_in, cap_cur, sel_country)
             st.rerun()
         if ts and ts.get("id") and b2.button("🗑", key="cap_del", use_container_width=True):
             delete_budget(ts["id"])
@@ -72,6 +76,9 @@ with st.container(border=True):
                         text=(f"{format_money(ts['spent'], tcur)} de {format_money(ts['planned'], tcur)} · "
                               f"{format_pct(ts['usage'])} {emoji} {label} · disponível {format_money(ts['available'], tcur)} · "
                               f"projeção {format_money(ts['projection'], tcur)}"))
+            if ts.get("src_currency") and ts["src_currency"] != tcur:
+                st.caption(f"↔ Definido em {format_money(ts['src_amount'], ts['src_currency'])} — "
+                           f"convertido pra {tcur} no câmbio de hoje.")
 
 # ---------- Orçamento por categoria (opcional, mais detalhado) ----------
 st.subheader("Por categoria (opcional)")
@@ -96,6 +103,8 @@ for r in rows:
         text=(f"{format_pct(r['usage'])} usado · disponível {format_money(r['available'], cur)} · "
               f"projeção de fechamento {format_money(r['projection'], cur)}"),
     )
+    if r.get("src_currency") and r["src_currency"] != cur:
+        st.caption(f"↔ definido em {format_money(r['src_amount'], r['src_currency'])}")
 
 st.divider()
 with st.expander("➕ Definir / editar orçamento"):
@@ -106,10 +115,12 @@ with st.expander("➕ Definir / editar orçamento"):
             st.caption(f"Orçamento para **{COUNTRY_FLAG.get(b_country, b_country)}**")
     else:
         b_country = st.selectbox("País", fam_countries, format_func=lambda c: COUNTRY_FLAG.get(c, c))
-    b_cur = COUNTRY_CCY.get(b_country, base)
+    native = COUNTRY_CCY.get(b_country, base)
     cats = [c for c in ctx["categories"] if c["kind"] in ("expense", "both")]
     csel = st.selectbox("Categoria", cats, format_func=lambda c: f"{c.get('icon', '')} {c['name']}".strip())
-    step = 1000.0 if b_cur == "JPY" else 100.0
+    cur_opts = [native] + [c for c in ["JPY", "BRL", "EUR", "USD"] if c != native]
+    b_cur = st.selectbox("Moeda", cur_opts, key="catbud_cur")
+    step = 1000.0 if b_cur == "JPY" else (1.0 if b_cur in ("EUR", "USD") else 100.0)
     val = st.number_input(f"Planejado para o mês ({b_cur})", min_value=0.0, step=step)
     if st.button("Salvar orçamento", type="primary"):
         upsert_budget(year, month, csel["id"], val, b_cur, b_country)
