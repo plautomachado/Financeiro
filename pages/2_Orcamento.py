@@ -8,7 +8,10 @@ from datetime import date
 from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
 from src.services.reference_service import load_context
-from src.services.budget_service import budget_status, upsert_budget, delete_budget, COUNTRY_CCY
+from src.services.budget_service import (
+    budget_status, upsert_budget, delete_budget, COUNTRY_CCY,
+    total_status, upsert_total_budget,
+)
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_name
 
@@ -37,18 +40,44 @@ if len(fam_countries) > 1:
 
 STATUS = {"ok": ("🟢", "Normal"), "warn": ("🟡", "Atenção"), "over": ("🔴", "Acima do orçamento")}
 
+# ---------- Teto do mês (orçamento TOTAL, sem dividir por categoria) ----------
+tcur = COUNTRY_CCY.get(sel_country, base) if sel_country else base
+ts = total_status(year, month, sel_country)
+with st.container(border=True):
+    st.markdown("#### 🎯 Teto do mês")
+    st.caption("Quanto você quer gastar no mês **todo** (não precisa dividir por categoria).")
+    if sel_country is None:
+        if ts:
+            emoji, label = STATUS[ts["status"]]
+            st.markdown(f"**{format_money(ts['spent'], tcur)} / {format_money(ts['planned'], tcur)}** &nbsp; {emoji} {label}")
+            st.progress(min(ts["usage"] / 100, 1.0),
+                        text=(f"{format_pct(ts['usage'])} usado · disponível {format_money(ts['available'], tcur)} · "
+                              f"projeção de fechamento {format_money(ts['projection'], tcur)}"))
+        else:
+            st.caption("Escolha um país (🇧🇷/🇯🇵) acima para definir o teto de cada um.")
+    else:
+        step = 1000.0 if tcur == "JPY" else 100.0
+        cap_in = st.number_input(f"Meta de gasto do mês ({tcur})", min_value=0.0, step=step,
+                                 value=float(ts["planned"]) if ts else 0.0, key="cap_input")
+        b1, b2 = st.columns([3, 1])
+        if b1.button("Salvar teto", type="primary", use_container_width=True, key="cap_save"):
+            upsert_total_budget(year, month, cap_in, tcur, sel_country)
+            st.rerun()
+        if ts and ts.get("id") and b2.button("🗑", key="cap_del", use_container_width=True):
+            delete_budget(ts["id"])
+            st.rerun()
+        if ts:
+            emoji, label = STATUS[ts["status"]]
+            st.progress(min(ts["usage"] / 100, 1.0),
+                        text=(f"{format_money(ts['spent'], tcur)} de {format_money(ts['planned'], tcur)} · "
+                              f"{format_pct(ts['usage'])} {emoji} {label} · disponível {format_money(ts['available'], tcur)} · "
+                              f"projeção {format_money(ts['projection'], tcur)}"))
+
+# ---------- Orçamento por categoria (opcional, mais detalhado) ----------
+st.subheader("Por categoria (opcional)")
 rows = budget_status(year, month, sel_country)
 if not rows:
-    st.info("Nenhum orçamento definido para este período. Use **➕ Definir orçamento** abaixo.")
-
-# total (útil principalmente na visão "Todos", tudo em R$)
-if rows:
-    tot_plan = sum(r["planned"] for r in rows)
-    tot_spent = sum(r["spent"] for r in rows)
-    tcur = base if sel_country is None else COUNTRY_CCY.get(sel_country, base)
-    t1, t2 = st.columns(2)
-    t1.metric("Planejado (total)", format_money(tot_plan, tcur))
-    t2.metric("Gasto (total)", format_money(tot_spent, tcur))
+    st.caption("Sem orçamentos por categoria ainda — dá pra usar só o teto acima, ou detalhar em **➕ Definir orçamento** abaixo.")
 
 for r in rows:
     emoji, label = STATUS[r["status"]]

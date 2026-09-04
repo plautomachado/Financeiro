@@ -80,6 +80,8 @@ def budget_status(year, month, country=None):
     rows = []
     for b in budgets:
         cid = b["category_id"]
+        if not cid:                 # linha de "teto do mês" (sem categoria) -> tratada à parte
+            continue
         ctry = b.get("country", "BR")
         cur = b.get("currency") or COUNTRY_CCY.get(ctry, base)
         cat = cats.get(cid, {})
@@ -102,3 +104,68 @@ def budget_status(year, month, country=None):
         })
     rows.sort(key=lambda r: r["usage"], reverse=True)
     return rows
+
+
+# ---------- Teto do mês (orçamento total, sem categoria) ----------
+def get_total_budget(year, month, country=None):
+    """Linha(s) de teto (category_id NULL). country=None -> de todos os países."""
+    q = (_client().table("monthly_budgets").select("*")
+         .eq("year", year).eq("month", month).is_("category_id", "null"))
+    if country:
+        q = q.eq("country", country)
+    return q.execute().data
+
+
+def upsert_total_budget(year, month, planned_amount, currency, country):
+    ctx = load_context()
+    existing = (_client().table("monthly_budgets").select("id")
+                .eq("year", year).eq("month", month).eq("country", country)
+                .is_("category_id", "null").execute().data)
+    payload = {"planned_amount": float(planned_amount), "currency": currency}
+    if existing:
+        return (_client().table("monthly_budgets").update(payload)
+                .eq("id", existing[0]["id"]).execute())
+    payload.update({
+        "household_id": ctx["household_id"], "year": year, "month": month,
+        "category_id": None, "country": country,
+    })
+    return _client().table("monthly_budgets").insert(payload).execute()
+
+
+def total_status(year, month, country=None):
+    """Status do teto do mês. Retorna None se não houver teto definido.
+
+    country específico -> moeda nativa; None ("Todos") -> soma tetos convertidos p/ base.
+    """
+    ctx = load_context()
+    base = ctx["base_currency"]
+    caps = get_total_budget(year, month, country)
+    txs = list_transactions(year=year, month=month, type="expense", country=country)
+
+    if country:
+        cur = COUNTRY_CCY.get(country, base)
+        spent = sum(_num(t.get("amount_original")) for t in txs)
+        planned = _num(caps[0]["planned_amount"]) if caps else 0.0
+        cap_id = caps[0]["id"] if caps else None
+    else:
+        cur = base
+        spent = sum(_num(t.get("amount_base")) for t in txs)
+        planned = 0.0
+        for c in caps:
+            cc = c.get("currency") or base
+            rate = 1.0 if cc == base else (latest_rate(cc, base) or 1.0)
+            planned += _num(c["planned_amount"]) * rate
+        cap_id = None
+
+    if planned <= 0:
+        return None
+    today = date.today()
+    total_days = days_in_month(year, month)
+    day = today.day if (today.year == year and today.month == month) else total_days
+    usage = budget_usage(spent, planned)
+    return {
+        "id": cap_id, "currency": cur, "planned": planned, "spent": spent,
+        "available": planned - spent, "usage": usage,
+        "projection": budget_projection(spent, day, total_days),
+        "status": budget_status_label(usage),
+    }
