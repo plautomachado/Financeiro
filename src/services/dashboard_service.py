@@ -1,4 +1,6 @@
 """Agregações do dashboard (KPIs e recortes)."""
+from datetime import date
+
 from src.services.transaction_service import list_transactions
 from src.utils.calculations import savings_rate, free_balance
 from src.utils.dates import prev_month
@@ -67,6 +69,39 @@ def by_country(txs):
             continue
         out[t["country"]] = out.get(t["country"], 0) + _num(t["amount_base"])
     return out
+
+
+def category_averages(n_months=6, member_id=None, country=None, native=False, ref=None):
+    """Média MENSAL de despesa por categoria + total, nos últimos n_months.
+
+    Divide pelo nº de meses que TÊM lançamento (com 2 meses de dados, divide por 2).
+    """
+    f = "amount_original" if native else "amount_base"
+    ref = ref or date.today()
+    months = []
+    y, m = ref.year, ref.month
+    for _ in range(n_months):
+        months.append((y, m))
+        y, m = prev_month(y, m)
+
+    per_cat, total, months_with_data = {}, 0.0, 0
+    for (yr, mo) in months:
+        txs = list_transactions(year=yr, month=mo, member_id=member_id, country=country, type="expense")
+        month_sum = 0.0
+        for t in txs:
+            v = _num(t.get(f))
+            per_cat[t.get("category_id")] = per_cat.get(t.get("category_id"), 0) + v
+            month_sum += v
+        if month_sum > 0:
+            months_with_data += 1
+        total += month_sum
+
+    div = max(months_with_data, 1)
+    return {
+        "per_cat_avg": {cid: v / div for cid, v in per_cat.items()},
+        "total_avg": total / div,
+        "months": months_with_data,
+    }
 
 
 def country_totals(year, month, member_id=None):
