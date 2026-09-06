@@ -8,11 +8,11 @@ import pandas as pd
 
 from src.components.auth import require_auth, sidebar_account
 from src.components.ui import inject_css, bottom_nav
-from src.services.reference_service import load_context
+from src.services.reference_service import load_context, latest_rate
 from src.services import dashboard_service as dash
 from src.services.goal_service import list_goals, goal_progress
 from src.services.currency_service import ensure_daily_rates
-from src.services.transaction_service import delete_transaction
+from src.services.transaction_service import delete_transaction, update_transaction
 from src.utils.formatting import format_money, format_pct
 from src.utils.dates import month_name, prev_month
 
@@ -118,7 +118,61 @@ for g in goals:
              f"/ {format_money(p['target'], p['currency'])}")
     st.progress(min(p["pct"] / 100, 1.0), text=format_pct(p["pct"]))
 
-# ---------- Últimos lançamentos (com excluir) ----------
+# ---------- Últimos lançamentos (editar / excluir) ----------
+_TYPES = {"Despesa": "expense", "Receita": "income", "Aporte": "contribution", "Transferência": "transfer"}
+_CURR = ["JPY", "BRL", "EUR", "USD"]
+_CTRY = ["JP", "BR", "EU", "US"]
+
+
+def _render_edit_form(t):
+    with st.container(border=True):
+        st.caption("✏️ Editar lançamento")
+        e1, e2 = st.columns(2)
+        etype = e1.selectbox("Tipo", list(_TYPES.keys()),
+                             index=list(_TYPES.values()).index(t["type"]) if t["type"] in _TYPES.values() else 0,
+                             key=f"et_{t['id']}")
+        eval_ = e2.number_input("Valor", min_value=0.0, value=float(t["amount_original"] or 0),
+                                step=100.0, key=f"ev_{t['id']}")
+        e3, e4 = st.columns(2)
+        ecur = e3.selectbox("Moeda", _CURR, index=_CURR.index(t["currency_original"]) if t["currency_original"] in _CURR else 0,
+                            key=f"ec_{t['id']}")
+        ectry = e4.selectbox("País", _CTRY, index=_CTRY.index(t["country"]) if t["country"] in _CTRY else 0,
+                             format_func=lambda c: COUNTRY_FLAG.get(c, c), key=f"ectry_{t['id']}")
+        ttype = _TYPES[etype]
+        cat_id = t.get("category_id")
+        if ttype in ("expense", "income"):
+            cat_opts = [None] + [c for c in ctx["categories"] if c["kind"] in (ttype, "both")]
+            cur_cat = next((c for c in ctx["categories"] if c["id"] == t.get("category_id")), None)
+            csel = st.selectbox("Categoria", cat_opts,
+                                index=cat_opts.index(cur_cat) if cur_cat in cat_opts else 0,
+                                format_func=lambda c: "—" if c is None else f"{c.get('icon', '')} {c['name']}".strip(),
+                                key=f"ecat_{t['id']}")
+            cat_id = csel["id"] if csel else None
+        mem_opts = ctx["members"]
+        msel = st.selectbox("Pessoa", mem_opts,
+                            index=next((i for i, m in enumerate(mem_opts) if m["id"] == t["member_id"]), 0),
+                            format_func=lambda m: m["name"], key=f"emem_{t['id']}")
+        e5, e6 = st.columns(2)
+        edate = e5.date_input("Data", value=date.fromisoformat(t["occurred_on"][:10]),
+                              format="DD/MM/YYYY", key=f"ed_{t['id']}")
+        edesc = e6.text_input("Descrição", value=t.get("description") or "", key=f"edesc_{t['id']}")
+        bb1, bb2 = st.columns(2)
+        if bb1.button("💾 Salvar", type="primary", use_container_width=True, key=f"esave_{t['id']}"):
+            rate = 1.0 if ecur == base else (latest_rate(ecur, base) or float(t.get("exchange_rate") or 1.0))
+            update_transaction(t["id"], {
+                "type": ttype, "amount_original": float(eval_), "currency_original": ecur,
+                "exchange_rate": float(rate), "country": ectry, "category_id": cat_id,
+                "member_id": msel["id"], "description": (edesc or None),
+                "occurred_on": edate.isoformat(),
+            })
+            st.session_state.pop("edit_tx_id", None)
+            st.success("Lançamento atualizado!")
+            st.rerun()
+        if bb2.button("Cancelar", use_container_width=True, key=f"ecancel_{t['id']}"):
+            st.session_state.pop("edit_tx_id", None)
+            st.rerun()
+
+
 st.divider()
 st.subheader("Últimos lançamentos")
 _mem = {m["id"]: m["name"] for m in ctx["members"]}
@@ -130,16 +184,22 @@ if not recent:
 for t in recent:
     desc = t.get("description") or _cat.get(t.get("category_id"), "—")
     dd = t["occurred_on"][8:10] + "/" + t["occurred_on"][5:7]
-    row = st.columns([5, 1])
+    row = st.columns([5, 1, 1])
     row[0].markdown(
         f"{_sign.get(t['type'], '')}{format_money(t['amount_original'], t['currency_original'])} "
         f"· {desc} · {_mem.get(t['member_id'], '—')} · {dd}"
     )
-    with row[1].popover("🗑"):
+    if row[1].button("✏️", key=f"edit_{t['id']}"):
+        st.session_state["edit_tx_id"] = t["id"]
+        st.rerun()
+    with row[2].popover("🗑"):
         st.caption("Excluir este lançamento?")
         if st.button("Confirmar exclusão", key=f"del_{t['id']}", type="primary"):
             delete_transaction(t["id"])
+            st.session_state.pop("edit_tx_id", None)
             st.rerun()
+    if st.session_state.get("edit_tx_id") == t["id"]:
+        _render_edit_form(t)
 
 st.page_link("pages/1_Lancar.py", label="➕ Novo lançamento", use_container_width=True)
 
