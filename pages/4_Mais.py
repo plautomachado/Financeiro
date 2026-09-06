@@ -8,7 +8,10 @@ import pandas as pd
 
 from src.components.auth import require_auth, sidebar_account, account_section
 from src.components.ui import inject_css, bottom_nav
-from src.services.reference_service import load_context, refresh_context, create_category, deactivate_category
+from src.services.reference_service import (
+    load_context, refresh_context, create_category, deactivate_category,
+    reorder_categories, update_category,
+)
 from src.services.transaction_service import list_transactions
 from src.services.currency_service import current_rates_to_brl, update_rates_to_brl
 from src.utils.formatting import format_money
@@ -54,15 +57,48 @@ with tab2:
                 st.rerun()
             else:
                 st.warning("Informe o nome.")
-    st.caption("Toque em ✖ para desativar uma categoria.")
-    for c in ctx["categories"]:
+    st.caption("Use ↑↓ pra organizar a ordem · ✏️ renomear · ✖ desativar.")
+    cats_sorted = ctx["categories"]
+    ids = [c["id"] for c in cats_sorted]
+    for i, c in enumerate(cats_sorted):
         tag = {"expense": "Despesa", "income": "Receita", "both": "Ambos"}.get(c["kind"], c["kind"])
-        row = st.columns([6, 1])
+        row = st.columns([5, 1, 1, 1, 1])
         row[0].markdown(f"{c.get('icon', '')} **{c['name']}** — {tag}")
-        if row[1].button("✖", key=f"delcat_{c['id']}"):
+        if i > 0 and row[1].button("↑", key=f"up_{c['id']}"):
+            new = ids[:]
+            new[i - 1], new[i] = new[i], new[i - 1]
+            reorder_categories(new)
+            refresh_context()
+            st.rerun()
+        if i < len(cats_sorted) - 1 and row[2].button("↓", key=f"down_{c['id']}"):
+            new = ids[:]
+            new[i], new[i + 1] = new[i + 1], new[i]
+            reorder_categories(new)
+            refresh_context()
+            st.rerun()
+        if row[3].button("✏️", key=f"editcat_{c['id']}"):
+            st.session_state["edit_cat_id"] = c["id"]
+            st.rerun()
+        if row[4].button("✖", key=f"delcat_{c['id']}"):
             deactivate_category(c["id"])
             refresh_context()
             st.rerun()
+        if st.session_state.get("edit_cat_id") == c["id"]:
+            with st.container(border=True):
+                en = st.text_input("Novo nome", value=c["name"], key=f"ecn_{c['id']}")
+                ei = st.text_input("Ícone (emoji)", value=c.get("icon") or "", key=f"eci_{c['id']}")
+                eb1, eb2 = st.columns(2)
+                if eb1.button("Salvar", type="primary", key=f"ecs_{c['id']}", use_container_width=True):
+                    if en.strip():
+                        update_category(c["id"], {"name": en.strip(), "icon": ei.strip() or None})
+                        st.session_state.pop("edit_cat_id", None)
+                        refresh_context()
+                        st.rerun()
+                    else:
+                        st.warning("O nome não pode ficar vazio.")
+                if eb2.button("Cancelar", key=f"ecc_{c['id']}", use_container_width=True):
+                    st.session_state.pop("edit_cat_id", None)
+                    st.rerun()
 
 with tab3:
     st.write("**Cotações automáticas → Real**")

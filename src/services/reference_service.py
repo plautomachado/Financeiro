@@ -57,6 +57,17 @@ def deactivate_category(category_id):
     return _client().table("categories").update({"is_active": False}).eq("id", category_id).execute()
 
 
+def reorder_categories(ordered_ids):
+    """Redefine sort_order = posição na lista (0,1,2...) para reorganizar as categorias."""
+    for i, cid in enumerate(ordered_ids):
+        _client().table("categories").update({"sort_order": i}).eq("id", cid).execute()
+
+
+def update_category(category_id, updates):
+    """Edita uma categoria (ex.: nome, ícone)."""
+    return _client().table("categories").update(updates).eq("id", category_id).execute()
+
+
 def list_accounts(active_only=True):
     q = _client().table("accounts").select("*").order("name")
     if active_only:
