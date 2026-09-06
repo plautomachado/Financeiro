@@ -110,8 +110,9 @@ if up is not None and (is_pdf or is_img):
     elif pdf_rows:
         st.success(f"Li **{len(pdf_rows)}** possível(is) lançamento(s). Ajuste o tipo de extrato e prepare:")
         origem = st.radio(
-            "Que extrato é esse?", ["Conta corrente", "Fatura de cartão"], horizontal=True,
-            help="Define o sinal: em conta, valor negativo = despesa; em fatura, valor positivo = compra.",
+            "Que extrato é esse?", ["Fatura de cartão", "Conta corrente"], horizontal=True,
+            help="Fatura de cartão: as compras entram como DESPESA (estorno vira receita). "
+                 "Conta corrente: negativo = despesa, positivo = entrada/receita.",
         )
         with st.expander("👀 Ver o que foi lido (se algo veio errado)"):
             st.dataframe(
