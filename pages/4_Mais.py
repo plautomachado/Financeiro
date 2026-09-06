@@ -57,29 +57,38 @@ with tab2:
                 st.rerun()
             else:
                 st.warning("Informe o nome.")
-    st.caption("Use ↑↓ pra organizar a ordem · ✏️ renomear · ✖ desativar.")
+    st.caption("Arraste em **↕️ Reordenar** pra mudar a ordem · ✏️ renomear · ✖ desativar.")
     cats_sorted = ctx["categories"]
-    ids = [c["id"] for c in cats_sorted]
-    for i, c in enumerate(cats_sorted):
+
+    # ---- Reordenar arrastando e soltando ----
+    with st.expander("↕️ Reordenar (arraste e solte)"):
+        try:
+            from streamlit_sortables import sort_items
+            label_to_id, labels = {}, []
+            for c in cats_sorted:
+                lbl = f"{c.get('icon', '')} {c['name']}".strip()
+                while lbl in label_to_id:      # garante rótulo único
+                    lbl += " "
+                label_to_id[lbl] = c["id"]
+                labels.append(lbl)
+            new_labels = sort_items(labels, direction="vertical", key="cat_sort")
+            if new_labels and list(new_labels) != labels:
+                st.caption("Ordem alterada — clique para salvar:")
+                if st.button("💾 Salvar nova ordem", type="primary", key="save_cat_order"):
+                    reorder_categories([label_to_id[l] for l in new_labels])
+                    refresh_context()
+                    st.rerun()
+        except Exception:
+            st.caption("Recurso de arrastar ainda carregando (aguarde o app atualizar).")
+
+    for c in cats_sorted:
         tag = {"expense": "Despesa", "income": "Receita", "both": "Ambos"}.get(c["kind"], c["kind"])
-        row = st.columns([5, 1, 1, 1, 1])
+        row = st.columns([6, 1, 1])
         row[0].markdown(f"{c.get('icon', '')} **{c['name']}** — {tag}")
-        if i > 0 and row[1].button("↑", key=f"up_{c['id']}"):
-            new = ids[:]
-            new[i - 1], new[i] = new[i], new[i - 1]
-            reorder_categories(new)
-            refresh_context()
-            st.rerun()
-        if i < len(cats_sorted) - 1 and row[2].button("↓", key=f"down_{c['id']}"):
-            new = ids[:]
-            new[i], new[i + 1] = new[i + 1], new[i]
-            reorder_categories(new)
-            refresh_context()
-            st.rerun()
-        if row[3].button("✏️", key=f"editcat_{c['id']}"):
+        if row[1].button("✏️", key=f"editcat_{c['id']}"):
             st.session_state["edit_cat_id"] = c["id"]
             st.rerun()
-        if row[4].button("✖", key=f"delcat_{c['id']}"):
+        if row[2].button("✖", key=f"delcat_{c['id']}"):
             deactivate_category(c["id"])
             refresh_context()
             st.rerun()
