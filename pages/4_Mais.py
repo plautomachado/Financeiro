@@ -27,6 +27,7 @@ st.title("⚙️ Mais")
 account_section()
 st.divider()
 
+st.page_link("pages/11_Lancamentos.py", label="📋 Lançamentos (todos)", use_container_width=True)
 st.page_link("pages/5_Recorrencias.py", label="🔁 Recorrências", use_container_width=True)
 st.page_link("pages/6_Cartoes.py", label="💳 Cartões & parcelas", use_container_width=True)
 st.page_link("pages/7_Relatorio.py", label="📄 Relatório mensal", use_container_width=True)

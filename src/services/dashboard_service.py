@@ -80,6 +80,17 @@ def by_category(txs, categories, view_cur=None, base=None):
     return dict(sorted(out.items(), key=lambda x: x[1], reverse=True))
 
 
+def category_amounts(txs, view_cur=None, base=None):
+    """Despesa do período por category_id (convertido para view_cur)."""
+    conv = _conv_fn(view_cur, base)
+    out = {}
+    for t in txs:
+        if t["type"] != "expense":
+            continue
+        out[t.get("category_id")] = out.get(t.get("category_id"), 0) + conv(t)
+    return out
+
+
 def by_member(txs, members, view_cur=None, base=None):
     conv = _conv_fn(view_cur, base)
     names = {m["id"]: m["name"] for m in members}
