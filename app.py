@@ -85,6 +85,17 @@ st.markdown(
     + '</div>',
     unsafe_allow_html=True,
 )
+
+# sobra acumulada (todos os meses) — excedente que não foi gasto nem virou meta
+acc = dash.accumulated_free(member_id=member_id, country=sel_country, view_cur=disp_cur)
+st.markdown(
+    '<div class="kpi-grid"><div class="kpi kpi-hero">'
+    '<div class="kpi-l">💰 Sobra acumulada (todos os meses)</div>'
+    f'<div class="kpi-v">{format_money(acc, disp_cur)}</div>'
+    '</div></div>',
+    unsafe_allow_html=True,
+)
+st.caption("O que entrou e ainda **não foi gasto nem guardado em metas** — seu excedente acumulado.")
 st.divider()
 
 txs = s["_txs"]
@@ -114,17 +125,25 @@ if month_map or avg_map:
                       "Média": round(avg_map.get(cid, 0), 2)})
     dfc = pd.DataFrame(crows).sort_values("Mês", ascending=False)
     order = dfc["Categoria"].tolist()
-    bars = alt.Chart(dfc).mark_bar(color="#0E7C66", cornerRadiusEnd=3).encode(
-        x=alt.X("Categoria:N", sort=order, title=None, axis=alt.Axis(labelAngle=-40)),
-        y=alt.Y("Mês:Q", title=disp_cur),
+    # escala: cabe as barras e as médias razoáveis (limita 1 outlier gigante p/ não esmagar tudo)
+    mvals = [r["Mês"] for r in crows]
+    cap = max(mvals) if any(mvals) else 0
+    reasonable = [v for v in (mvals + [r["Média"] for r in crows]) if v <= max(cap * 3, 1)]
+    dom_max = (max(reasonable) if reasonable else max(mvals + [1])) * 1.1
+    scale = alt.Scale(domain=[0, dom_max], clamp=True)
+
+    bars = alt.Chart(dfc).mark_bar(color="#0E7C66").encode(
+        y=alt.Y("Categoria:N", sort=order, title=None),
+        x=alt.X("Mês:Q", title=disp_cur, scale=scale),
         tooltip=["Categoria", "Mês", "Média"],
     )
-    pts = alt.Chart(dfc).mark_point(color="#C2442E", size=90, filled=True, opacity=1).encode(
-        x=alt.X("Categoria:N", sort=order), y="Média:Q",
+    pts = alt.Chart(dfc).mark_point(color="#C2442E", size=85, filled=True, opacity=1).encode(
+        y=alt.Y("Categoria:N", sort=order), x=alt.X("Média:Q", scale=scale),
         tooltip=["Categoria", "Média"],
     )
-    st.altair_chart((bars + pts).properties(height=300), use_container_width=True)
-    st.caption("🟩 barra = gasto **deste mês** · 🔴 ponto = **média mensal** (dados acumulados).")
+    st.altair_chart((bars + pts).properties(height=max(len(crows) * 34, 140)), use_container_width=True)
+    st.caption("🟩 barra = gasto **deste mês** · 🔴 ponto = **média mensal** (acumulada). "
+               "Passe o dedo/mouse pra ver os valores.")
 else:
     st.info("Sem despesas lançadas neste mês ainda. Use **➕ Lançar** para começar.")
 

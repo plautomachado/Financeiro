@@ -80,6 +80,19 @@ def by_category(txs, categories, view_cur=None, base=None):
     return dict(sorted(out.items(), key=lambda x: x[1], reverse=True))
 
 
+def accumulated_free(member_id=None, country=None, view_cur=None, base=None):
+    """Sobra acumulada (todos os meses): receitas − despesas − aportes, em view_cur."""
+    conv = _conv_fn(view_cur, base)
+    total = 0.0
+    for t in list_transactions(member_id=member_id, country=country, limit=100000):
+        v = conv(t)
+        if t["type"] == "income":
+            total += v
+        elif t["type"] in ("expense", "contribution"):
+            total -= v
+    return total
+
+
 def category_amounts(txs, view_cur=None, base=None):
     """Despesa do período por category_id (convertido para view_cur)."""
     conv = _conv_fn(view_cur, base)
