@@ -27,7 +27,7 @@ members = ctx["members"]
 COUNTRY = {"JP": "Japão", "BR": "Brasil", "EU": "Europa", "US": "EUA"}
 
 st.title("📥 Importar extrato")
-st.caption("Suba um **CSV** ou **PDF** do banco/cartão. O app tenta ler e categorizar sozinho pelas suas regras, e você revisa antes de gravar.")
+st.caption("Suba um **CSV**, **PDF** ou **imagem/foto** do extrato (inclusive de **meses passados** — lança nas datas certas). O app lê, categoriza pelas suas regras, e você revisa antes de gravar.")
 
 
 def _parse_amt(x):
@@ -80,24 +80,32 @@ country = d3.selectbox("País", ["BR", "JP", "EU", "US"],
                        format_func=lambda c: COUNTRY[c])
 
 # ---------- upload ----------
-st.subheader("2. Arquivo (CSV ou PDF)")
-up = st.file_uploader("Selecione o extrato", type=["csv", "pdf"])
-is_pdf = up is not None and up.name.lower().endswith(".pdf")
+st.subheader("2. Arquivo (CSV, PDF ou imagem)")
+up = st.file_uploader("Selecione o extrato (mês passado também vale — lança nas datas certas)",
+                      type=["csv", "pdf", "png", "jpg", "jpeg", "webp"])
+_name = up.name.lower() if up else ""
+is_pdf = up is not None and _name.endswith(".pdf")
+is_img = up is not None and _name.endswith((".png", ".jpg", ".jpeg", ".webp"))
 
-# ===================== PDF =====================
-if up is not None and is_pdf:
+# ===================== PDF ou IMAGEM (foto/print) =====================
+if up is not None and (is_pdf or is_img):
     raw = up.getvalue()
     try:
-        from src.services.pdf_import import extract_transactions
-        pdf_rows = extract_transactions(raw)
+        from src.services.pdf_import import extract_transactions, extract_transactions_from_image
+        if is_img:
+            st.caption("🔎 Lendo a imagem (OCR)… pode levar alguns segundos.")
+            pdf_rows = extract_transactions_from_image(raw)
+        else:
+            pdf_rows = extract_transactions(raw)
     except Exception as e:
         pdf_rows = []
-        st.error(f"Não consegui abrir o PDF: {e}")
+        st.error(f"Não consegui ler o arquivo: {e}")
 
     if pdf_rows == []:
         st.warning(
-            "Não encontrei lançamentos neste PDF. Pode ser um layout diferente "
-            "(ou um PDF escaneado/imagem). Me manda um exemplo que eu calibro o leitor pro seu banco."
+            "Não encontrei lançamentos. Se for **imagem**, tente uma foto mais nítida e reta "
+            "(ou um print da tela do banco). Se for PDF, pode ser um layout diferente — "
+            "me manda um exemplo que eu calibro o leitor."
         )
     elif pdf_rows:
         st.success(f"Li **{len(pdf_rows)}** possível(is) lançamento(s). Ajuste o tipo de extrato e prepare:")
@@ -105,7 +113,7 @@ if up is not None and is_pdf:
             "Que extrato é esse?", ["Conta corrente", "Fatura de cartão"], horizontal=True,
             help="Define o sinal: em conta, valor negativo = despesa; em fatura, valor positivo = compra.",
         )
-        with st.expander("👀 Ver texto lido do PDF (se algo veio errado)"):
+        with st.expander("👀 Ver o que foi lido (se algo veio errado)"):
             st.dataframe(
                 pd.DataFrame([{"Data": r["date"], "Descrição": r["desc"], "Valor": r["amount"]} for r in pdf_rows]),
                 use_container_width=True,

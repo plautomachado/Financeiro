@@ -61,6 +61,24 @@ def extract_transactions(raw: bytes):
     return parse_text(extract_text(raw))
 
 
+def extract_text_from_image(raw: bytes) -> str:
+    """OCR: lê o texto de uma imagem (foto/print de extrato). Requer tesseract + pytesseract."""
+    import io
+    import pytesseract
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(raw))
+    try:
+        return pytesseract.image_to_string(img, lang="por+eng")
+    except Exception:
+        return pytesseract.image_to_string(img)   # fallback sem idioma específico
+
+
+def extract_transactions_from_image(raw: bytes):
+    """Retorna lançamentos a partir de uma IMAGEM (foto/print) via OCR."""
+    return parse_text(extract_text_from_image(raw))
+
+
 def parse_text(text: str):
     """Extrai lançamentos de um texto já lido (separado p/ facilitar testes)."""
     rows = []

@@ -3,6 +3,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# OCR (ler texto de imagens/fotos de extrato) — tesseract + português
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr tesseract-ocr-por \
+    && rm -rf /var/lib/apt/lists/*
+
 # dependências primeiro (cache de build)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
