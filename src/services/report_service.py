@@ -23,15 +23,15 @@ def build(year, month, country=None):
     native = country is not None
     cur = COUNTRY_CCY.get(country, base) if native else base
 
-    s = dash.summary(year, month, country=country, native=native)
+    s = dash.summary(year, month, country=country, view_cur=cur)
     txs = s["_txs"]
     prev = s["prev"]
     py, pm = prev_month(year, month)
     ptxs = list_transactions(year=py, month=pm, country=country)
 
-    cat_now = dash.by_category(txs, cats, native=native)
-    cat_prev = dash.by_category(ptxs, cats, native=native)
-    by_mem = dash.by_member(txs, members, native=native)
+    cat_now = dash.by_category(txs, cats, view_cur=cur)
+    cat_prev = dash.by_category(ptxs, cats, view_cur=cur)
+    by_mem = dash.by_member(txs, members, view_cur=cur)
     by_ctry = dash.by_country(txs) if country is None else {}
     budgets = budget_status(year, month, country)
     goals = [(g, goal_progress(g)) for g in list_goals()]

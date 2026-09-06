@@ -35,7 +35,7 @@ n = st.selectbox("Período", [3, 6, 12], index=1, format_func=lambda k: f"últim
 
 native = sel_country is not None
 cur = COUNTRY_CCY.get(sel_country, base) if native else base
-res = dash.category_averages(n_months=n, country=sel_country, native=native)
+res = dash.category_averages(n_months=n, country=sel_country, view_cur=cur)
 cats = {c["id"]: c for c in ctx["categories"]}
 
 if res["months"] == 0:
@@ -43,30 +43,40 @@ if res["months"] == 0:
 else:
     st.caption(f"Baseado em **{res['months']}** mês(es) com lançamentos.")
 
-    # ---- média total por mês (destaque) ----
-    st.markdown(
-        '<div class="kpi-grid"><div class="kpi kpi-hero">'
-        '<div class="kpi-l">Média de gasto por mês (total)</div>'
-        f'<div class="kpi-v">{format_money(res["total_avg"], cur)}</div>'
-        '</div></div>',
-        unsafe_allow_html=True,
-    )
-
-    # ---- por categoria (ordenado) ----
-    rows = sorted(res["per_cat_avg"].items(), key=lambda kv: kv[1], reverse=True)
+    # dados por categoria (ordenado)
     data = []
-    for cid, avg in rows:
+    for cid, avg in sorted(res["per_cat_avg"].items(), key=lambda kv: kv[1], reverse=True):
         if avg <= 0:
             continue
         c = cats.get(cid)
         name = f"{c.get('icon', '')} {c['name']}".strip() if c else "Sem categoria"
         data.append((name, round(avg, 2)))
 
+    names = [d[0] for d in data]
+    # ---- seletor: tirar categorias do total (ver o gasto "de verdade") ----
+    excluir = st.multiselect(
+        "Tirar do total (ex.: Compras, pra ver o gasto recorrente):", names, default=[],
+    )
+    total_incl = sum(avg for name, avg in data if name not in excluir)
+
+    # ---- média total por mês (destaque, já com o filtro) ----
+    st.markdown(
+        '<div class="kpi-grid"><div class="kpi kpi-hero">'
+        '<div class="kpi-l">Média de gasto por mês' + (' (sem: ' + ', '.join(excluir) + ')' if excluir else ' (total)') + '</div>'
+        f'<div class="kpi-v">{format_money(total_incl, cur)}</div>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+    if excluir:
+        st.caption(f"Com tudo incluído seria {format_money(res['total_avg'], cur)}.")
+
+    # ---- por categoria (gráfico + lista) ----
     if data:
         st.subheader(f"Média por categoria ({cur})")
-        df = pd.DataFrame({"Categoria": [d[0] for d in data], cur: [d[1] for d in data]}).set_index("Categoria")
+        df = pd.DataFrame({"Categoria": names, cur: [d[1] for d in data]}).set_index("Categoria")
         st.bar_chart(df, horizontal=True)
         for name, avg in data:
-            st.markdown(f"**{name}** — {format_money(avg, cur)} / mês")
+            tag = " · _(fora do total)_" if name in excluir else ""
+            st.markdown(f"**{name}** — {format_money(avg, cur)} / mês{tag}")
 
 bottom_nav("mais")

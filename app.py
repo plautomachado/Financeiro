@@ -65,7 +65,7 @@ if len(fam_countries) > 1:
 
 native = sel_country is not None
 disp_cur = COUNTRY_CCY.get(sel_country, base) if native else base
-s = dash.summary(year, month, member_id=member_id, country=sel_country, native=native)
+s = dash.summary(year, month, member_id=member_id, country=sel_country, view_cur=disp_cur)
 
 
 # ---------- KPIs (grade 2 colunas, estilo mockup) ----------
@@ -90,7 +90,7 @@ txs = s["_txs"]
 
 # ---------- Despesas por categoria ----------
 st.subheader(f"Despesas por categoria ({disp_cur})")
-cat = dash.by_category(txs, ctx["categories"], native=native)
+cat = dash.by_category(txs, ctx["categories"], view_cur=disp_cur)
 if cat:
     df = pd.DataFrame({"Categoria": list(cat.keys()), disp_cur: list(cat.values())}).set_index("Categoria")
     st.bar_chart(df, horizontal=True)
