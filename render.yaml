@@ -1,0 +1,23 @@
+# Blueprint do Render — sobe o RM Money como app próprio (fora do iframe).
+# No Render: New + → Blueprint → conecta este repositório.
+# Depois preencha SUPABASE_URL e SUPABASE_ANON_KEY (marcados como secretos).
+services:
+  - type: web
+    name: rm-money
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: >-
+      streamlit run app.py
+      --server.port $PORT
+      --server.address 0.0.0.0
+      --server.headless true
+      --server.enableCORS false
+      --server.enableXsrfProtection false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
