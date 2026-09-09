@@ -26,30 +26,34 @@ if not goals:
 for g in goals:
     p = goal_progress(g)
     cur = p["currency"]
-    icon = {"emergency": "🛟", "house": "🏠"}.get(g["type"], "🎯")
+    has_target = bool(p["target"] and p["target"] > 0)
+    icon = {"emergency": "🛟", "house": "🏠", "investment": "📈"}.get(g["type"], "🎯") if has_target else "🐷"
 
     st.subheader(f"{icon} {g['name']}")
-    st.progress(min(p["pct"] / 100, 1.0), text=format_pct(p["pct"]))
+    if has_target:
+        st.progress(min(p["pct"] / 100, 1.0), text=format_pct(p["pct"]))
+        a, b, c = st.columns(3)
+        a.metric("Acumulado", format_money(p["current"], cur))
+        b.metric("Meta", format_money(p["target"], cur))
+        c.metric("Falta", format_money(p["remaining"], cur))
 
-    a, b, c = st.columns(3)
-    a.metric("Acumulado", format_money(p["current"], cur))
-    b.metric("Meta", format_money(p["target"], cur))
-    c.metric("Falta", format_money(p["remaining"], cur))
+        if "months_covered" in p:
+            st.caption(f"🛟 Cobre **{p['months_covered']:.1f} meses** de despesas da família.")
+        if p.get("estimated_date"):
+            st.caption(f"No ritmo de {format_money(p['monthly_plan'], cur)}/mês → conclusão estimada em "
+                       f"**{month_label(p['estimated_date'].year, p['estimated_date'].month)}**.")
+        if p.get("monthly_needed") and g.get("target_date"):
+            st.caption(f"Para bater a data desejada: aporte de **{format_money(p['monthly_needed'], cur)}/mês**.")
 
-    if "months_covered" in p:
-        st.caption(f"🛟 Cobre **{p['months_covered']:.1f} meses** de despesas da família.")
-    if p.get("estimated_date"):
-        st.caption(f"No ritmo de {format_money(p['monthly_plan'], cur)}/mês → conclusão estimada em "
-                   f"**{month_label(p['estimated_date'].year, p['estimated_date'].month)}**.")
-    if p.get("monthly_needed") and g.get("target_date"):
-        st.caption(f"Para bater a data desejada: aporte de **{format_money(p['monthly_needed'], cur)}/mês**.")
-
-    plan = p["monthly_plan"] or 3000
-    sim_values = [round(plan), round(plan * 1.5), round(plan * 2)]
-    with st.expander("📈 Simular aportes"):
-        for s in simulate(g, sim_values):
-            when = month_label(s["date"].year, s["date"].month) if s["date"] else "—"
-            st.write(f"{format_money(s['monthly'], cur)}/mês → **{when}**")
+        plan = p["monthly_plan"] or 3000
+        sim_values = [round(plan), round(plan * 1.5), round(plan * 2)]
+        with st.expander("📈 Simular aportes"):
+            for s in simulate(g, sim_values):
+                when = month_label(s["date"].year, s["date"].month) if s["date"] else "—"
+                st.write(f"{format_money(s['monthly'], cur)}/mês → **{when}**")
+    else:
+        st.metric("Guardado", format_money(p["current"], cur))
+        st.caption("🐷 Porquinho **sem meta fixa** — só acompanha o saldo que você reserva.")
 
     with st.expander("⚙️ Editar meta"):
         upd = {"name": st.text_input("Nome", value=g["name"], key=f"gn_{g['id']}")}
@@ -103,7 +107,7 @@ with st.expander("➕ Nova meta"):
     TYPES_G = {"custom": "Personalizada", "emergency": "Reserva", "house": "Casa", "investment": "Investimento"}
     ngt = gc1.selectbox("Tipo", list(TYPES_G.keys()), format_func=lambda t: TYPES_G[t], key="newgoalt")
     ngc = gc2.selectbox("Moeda", ["BRL", "JPY", "EUR", "USD"], key="newgoalc")
-    ngtarget = st.number_input("Valor alvo", min_value=0.0, step=100.0, key="newgoaltg")
+    ngtarget = st.number_input("Valor alvo (deixe 0 = porquinho, sem meta fixa)", min_value=0.0, step=100.0, key="newgoaltg")
     ngplan = st.number_input("Aporte mensal planejado", min_value=0.0, step=100.0, key="newgoalp")
     if st.button("Criar meta", type="primary", key="newgoalsave"):
         if ngn.strip():
