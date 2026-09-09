@@ -108,12 +108,18 @@ st.divider()
 # ---------- Orçamento planejado × realizado ----------
 st.subheader("Orçamento planejado × realizado")
 budgets = rep["budgets"]
-if budgets:
-    for b in budgets:
-        st.markdown(f"**{b['icon']} {b['category']}** — {format_money(b['spent'], b['currency'])} "
-                    f"/ {format_money(b['planned'], b['currency'])} ({format_pct(b['usage'], 0)})")
-        st.progress(min(b["usage"] / 100, 1.0))
-else:
+tb = rep.get("total_budget")
+if tb:
+    st.markdown(f"**🎯 Teto do mês** — {format_money(tb['spent'], tb['currency'])} "
+                f"/ {format_money(tb['planned'], tb['currency'])} ({format_pct(tb['usage'], 0)})")
+    st.progress(min(tb["usage"] / 100, 1.0))
+    if tb.get("src_currency") and tb["src_currency"] != tb["currency"]:
+        st.caption(f"↔ definido em {format_money(tb['src_amount'], tb['src_currency'])}")
+for b in budgets:
+    st.markdown(f"**{b['icon']} {b['category']}** — {format_money(b['spent'], b['currency'])} "
+                f"/ {format_money(b['planned'], b['currency'])} ({format_pct(b['usage'], 0)})")
+    st.progress(min(b["usage"] / 100, 1.0))
+if not tb and not budgets:
     st.caption("Nenhum orçamento definido neste mês.")
 
 st.divider()

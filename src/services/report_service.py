@@ -2,7 +2,7 @@
 from src.services.reference_service import load_context
 from src.services.transaction_service import list_transactions
 from src.services import dashboard_service as dash
-from src.services.budget_service import budget_status, COUNTRY_CCY
+from src.services.budget_service import budget_status, total_status, COUNTRY_CCY
 from src.services.goal_service import list_goals, goal_progress
 from src.utils.dates import prev_month
 from src.utils.formatting import format_money, format_pct
@@ -34,11 +34,12 @@ def build(year, month, country=None):
     by_mem = dash.by_member(txs, members, view_cur=cur)
     by_ctry = dash.by_country(txs) if country is None else {}
     budgets = budget_status(year, month, country)
+    total_budget = total_status(year, month, country)
     goals = [(g, goal_progress(g)) for g in list_goals()]
 
     return {
         "summary": s, "prev": prev, "by_category": cat_now, "by_member": by_mem,
-        "by_country": by_ctry, "budgets": budgets, "goals": goals,
+        "by_country": by_ctry, "budgets": budgets, "total_budget": total_budget, "goals": goals,
         "base": cur, "currency": cur, "country": country,
         "insights": _insights(s, cat_now, cat_prev, by_ctry, budgets, goals, cur),
     }
