@@ -126,8 +126,15 @@ if st.session_state.get("lc_person") != msel:
     st.session_state.lc_ctry = member["default_country"]
 
 
+_fam_countries = {m["default_country"] for m in members}
+
+
 def _sync_from_cur():
-    st.session_state.lc_ctry = CCY_TO_CTRY.get(st.session_state.lc_cur, st.session_state.lc_ctry)
+    # só R$→Brasil e ¥→Japão forçam o país; € e $ deixam o país como está
+    # (permite, ex.: salário em € com país Japão)
+    ctry = CCY_TO_CTRY.get(st.session_state.lc_cur)
+    if ctry in _fam_countries:
+        st.session_state.lc_ctry = ctry
 
 
 def _sync_from_ctry():
