@@ -114,14 +114,31 @@ members = ctx["members"]
 member_names = [m["name"] for m in members]
 msel = st.segmented_control("Pessoa", member_names, default=member_names[0]) or member_names[0]
 member = next(m for m in members if m["name"] == msel)
-def_cur = member["default_currency"]
-def_country = member["default_country"]
+
+# País e moeda andam JUNTOS: Brasil ↔ R$, Japão ↔ ¥, Europa ↔ €, EUA ↔ $
+CCY_TO_CTRY = {"BRL": "BR", "JPY": "JP", "EUR": "EU", "USD": "US"}
+CTRY_TO_CCY = {v: k for k, v in CCY_TO_CTRY.items()}
+
+# ao TROCAR de pessoa, segue o padrão dela; senão mantém o que você escolheu
+if st.session_state.get("lc_person") != msel:
+    st.session_state.lc_person = msel
+    st.session_state.lc_cur = member["default_currency"]
+    st.session_state.lc_ctry = member["default_country"]
+
+
+def _sync_from_cur():
+    st.session_state.lc_ctry = CCY_TO_CTRY.get(st.session_state.lc_cur, st.session_state.lc_ctry)
+
+
+def _sync_from_ctry():
+    st.session_state.lc_cur = CTRY_TO_CCY.get(st.session_state.lc_ctry, st.session_state.lc_cur)
+
 
 col1, col2 = st.columns([2, 1])
 amount = col1.number_input("Valor", min_value=0.0, step=100.0, format="%.2f")
-currency = col2.selectbox("Moeda", CURRENCIES, index=CURRENCIES.index(def_cur))
+currency = col2.selectbox("Moeda", CURRENCIES, key="lc_cur", on_change=_sync_from_cur)
 
-country = st.selectbox("País", COUNTRIES, index=COUNTRIES.index(def_country),
+country = st.selectbox("País", COUNTRIES, key="lc_ctry", on_change=_sync_from_ctry,
                        format_func=lambda c: COUNTRY_LABELS[c])
 
 # Categoria (despesa/receita) ou Meta (aporte)
@@ -136,10 +153,25 @@ if ttype in ("expense", "income"):
 elif ttype == "contribution":
     goals = list_goals()
     if goals:
-        gsel = st.selectbox("Meta", goals, format_func=lambda g: g["name"])
+        gsel = st.selectbox("Destino (meta / porquinho)", goals, format_func=lambda g: g["name"])
         goal_id = gsel["id"]
     else:
-        st.info("Cadastre uma meta antes de registrar aportes.")
+        st.caption("Você ainda não tem destinos de aporte — crie um abaixo. 👇")
+    with st.expander("➕ Criar novo destino aqui mesmo (meta / porquinho)"):
+        from src.services.goal_service import create_goal as _create_goal
+        _TG = {"custom": "🐷 Porquinho", "investment": "📈 Investimento", "emergency": "🛟 Reserva", "house": "🏠 Casa"}
+        gn = st.text_input("Nome", placeholder="Ex.: NuInvest (Plauto), Porquinho Impostos", key="lc_ng_n")
+        gcol1, gcol2 = st.columns(2)
+        gtype = gcol1.selectbox("Tipo", list(_TG.keys()), format_func=lambda t: _TG[t], key="lc_ng_type")
+        gcur = gcol2.selectbox("Moeda", CURRENCIES, index=CURRENCIES.index("BRL"), key="lc_ng_c")
+        gtarget = st.number_input("Valor alvo (0 = porquinho, sem meta)", min_value=0.0, step=100.0, key="lc_ng_t")
+        if st.button("Criar destino", key="lc_ng_btn"):
+            if gn.strip():
+                _create_goal(name=gn.strip(), type=gtype, target_amount=gtarget, currency=gcur)
+                st.success("Destino criado! Selecione ele acima. ✅")
+                st.rerun()
+            else:
+                st.warning("Informe o nome.")
 
 # Conta / cartão (contas + cartões de crédito, tudo num só lugar)
 try:
